@@ -271,7 +271,7 @@ namespace BorderlessGaming.Logic.Windows
         private static extern WindowStyleFlags GetWindowLong64(IntPtr hWnd, WindowLongIndex nIndex);
 
         /// <summary>
-        // This static method is required because legacy OSes do not support SetWindowLongPtr 
+        // This static method is required because legacy OSes do not support SetWindowLongPtr
         /// </summary>
         public static WindowStyleFlags GetWindowLong(IntPtr hWnd, WindowLongIndex nIndex)
         {
@@ -292,7 +292,7 @@ namespace BorderlessGaming.Logic.Windows
             WindowStyleFlags dwNewLong);
 
         /// <summary>
-        // This static method is required because legacy OSes do not support SetWindowLongPtr 
+        // This static method is required because legacy OSes do not support SetWindowLongPtr
         /// </summary>
         public static WindowStyleFlags SetWindowLong(IntPtr hWnd, WindowLongIndex nIndex, WindowStyleFlags dwNewLong)
         {
@@ -439,17 +439,25 @@ namespace BorderlessGaming.Logic.Windows
                     {
                         continue;
                     }
-                    uint processId;
-                    GetWindowThreadProcessId(ptr, out processId);
-                    var process = ProcessExtensions.GetProcessById((int)processId);
-                    if (process == null)
+                    // If GetWindowThreadProcessId fails the entire application crashes, so hopefully this will handle it safely.
+                    try
                     {
-                        continue;
+                        uint processId;
+                        GetWindowThreadProcessId(ptr, out processId);
+                        var process = ProcessExtensions.GetProcessById((int)processId);
+                        if (process == null)
+                        {
+                            continue;
+                        }
+                        callback(new ProcessDetails(process, ptr)
+                        {
+                            Manageable = true
+                        });
                     }
-                    callback(new ProcessDetails(process, ptr)
+                    catch
                     {
-                        Manageable = true
-                    });
+                        // Ignore or log (Counts as a continue).
+                    }
                 }
             }
         }
