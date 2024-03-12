@@ -129,7 +129,7 @@ namespace BorderlessGaming.Logic.Models
                  var styleCurrentWindowStandard = Native.GetWindowLong(WindowHandle, WindowLongIndex.Style);
                  var styleCurrentWindowExtended = Native.GetWindowLong(WindowHandle, WindowLongIndex.ExtendedStyle);
                  targetable = styleCurrentWindowStandard.HasTargetStyles() || styleCurrentWindowExtended.HasExtendedStyles();
-             }, UserPreferences.Instance.DetectionDelay);
+             }, SettingsWrapper.Instance.DetectionDelay);
             return targetable;
         }
 
@@ -142,7 +142,7 @@ namespace BorderlessGaming.Logic.Models
                     return DescriptionOverride;
                 }
 
-                if (UserPreferences.Instance.Settings.ViewAllProcessDetails is true)
+                if (SettingsWrapper.Instance.Settings.ViewAllProcessDetails is true)
                 {
                     var styleCurrentWindowStandard = Native.GetWindowLong(WindowHandle, WindowLongIndex.Style);
                     var styleCurrentWindowExtended = Native.GetWindowLong(WindowHandle, WindowLongIndex.ExtendedStyle);

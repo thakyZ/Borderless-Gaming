@@ -361,7 +361,7 @@ namespace BorderlessGaming.Logic.Windows
         /// <returns></returns>
         public static async Task<IntPtr> GetMainWindowForProcess(Process process)
         {
-            if (UserPreferences.Instance.Settings.SlowWindowDetection is true)
+            if (SettingsWrapper.Instance.Settings.SlowWindowDetection is true)
             {
                 try
                 {

@@ -16,6 +16,10 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
   <PropertyGroup>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <NeutralResourcesLanguage>en-US</NeutralResourcesLanguage>
+  </PropertyGroup>
+  <PropertyGroup>
     <ApplicationIcon>BorderlessGaming_new.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
@@ -34,6 +38,9 @@
     <EmbeddedResource Remove="Properties\Resources.de.resx" />
     <EmbeddedResource Remove="Properties\Resources.ru.resx" />
     <EmbeddedResource Remove="Properties\Resources.zh-CN.resx" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="app.manifest" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="bebop" Version="2.7.4" />

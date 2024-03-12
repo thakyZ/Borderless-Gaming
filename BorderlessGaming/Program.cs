@@ -19,7 +19,7 @@ namespace BorderlessGaming
 
             Tools.Setup();
             //use github updating for non-steam
-            if (UserPreferences.Instance.StartupOptions.IsSteam is false && UserPreferences.Instance.Settings.CheckForUpdates is true)
+            if (SettingsWrapper.Instance.StartupOptions.IsSteam is false && SettingsWrapper.Instance.Settings.CheckForUpdates is true)
             {
                 await Tools.CheckForUpdates();
             }

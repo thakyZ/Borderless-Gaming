@@ -27,7 +27,7 @@ namespace BorderlessGaming.Logic.Windows
 
         public static void WinEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
-            if (UserPreferences.Instance.Favorites is not null)
+            if (SettingsWrapper.Instance.Favorites is not null)
             {
                 try
                 {
@@ -39,7 +39,7 @@ namespace BorderlessGaming.Logic.Windows
                         return;
                     }
                     var details = new ProcessDetails(process, handle);
-                    foreach (var fav in UserPreferences.Instance.Favorites.Where(favorite => favorite.IsRunning && favorite.MuteInBackground))
+                    foreach (var fav in SettingsWrapper.Instance.Favorites.Where(favorite => favorite.IsRunning && favorite.MuteInBackground))
                     {
 
                         if (fav.Matches(details))

@@ -14,6 +14,8 @@ using BorderlessGaming.Logic.Models;
 using BorderlessGaming.Logic.Steam;
 using BorderlessGaming.Properties;
 
+#nullable enable
+
 namespace BorderlessGaming.Logic.Misc
 {
     public static class Tools
@@ -30,7 +32,7 @@ namespace BorderlessGaming.Logic.Misc
                 ExceptionHandler.AddGlobalHandlers();
             }
             LanguageManager.Load();
-            if (UserPreferences.Instance.StartupOptions.IsSteam is true && UserPreferences.Instance.Settings.DisableSteamIntegration is null or false)
+            if (SettingsWrapper.Instance.StartupOptions.IsSteam is true && SettingsWrapper.Instance.Settings.DisableSteamIntegration is null or false)
             {
                 SteamApi.Init();
             }
@@ -78,7 +80,7 @@ namespace BorderlessGaming.Logic.Misc
 
         public static async Task CheckForUpdates()
         {
-            var currentVersion = Assembly.GetEntryAssembly().GetName().Version;
+            var currentVersion = Assembly.GetExecutingAssembly().GetName().Version;
             var versionUrl = "https://raw.githubusercontent.com/Codeusa/Borderless-Gaming/master/version.xml";
             var elementName = string.Empty;
             var releasePageUrl = string.Empty;
@@ -128,8 +130,8 @@ namespace BorderlessGaming.Logic.Misc
                 return;
             }
 
-            var applicationVersion = Assembly.GetEntryAssembly().GetName().Version;
-            if (applicationVersion.CompareTo(newVersion) < 0)
+            var applicationVersion = Assembly.GetExecutingAssembly().GetName().Version;
+            if (applicationVersion?.CompareTo(newVersion) < 0)
             {
                 if (MessageBox.Show(Resources.InfoUpdateAvailable, Resources.InfoUpdatesHeader,
                         MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)

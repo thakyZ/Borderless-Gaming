@@ -8,6 +8,7 @@ using System.Windows.Forms;
 using BorderlessGaming.Logic.Models;
 using BorderlessGaming.Logic.Misc.Utilities;
 using BorderlessGaming.Logic.Windows;
+using BorderlessGaming.Logic.NekoBoiNick;
 
 namespace BorderlessGaming.Logic.Core
 {
@@ -19,7 +20,7 @@ namespace BorderlessGaming.Logic.Core
         private CancellationTokenSource _watcherToken;
         private Action<ProcessDetails, bool> _callback;
 
-        //Holds a list of process details 
+        //Holds a list of process details
         public List<ProcessDetails> Processes { get; }
 
         public bool AutoHandleFavorites { get; set; }
@@ -54,34 +55,42 @@ namespace BorderlessGaming.Logic.Core
 
         private async void Watch()
         {
-            while (!_watcherToken.IsCancellationRequested)
+            try
             {
-                await UpdateProcesses();
-                if (AutoHandleFavorites)
+                while (!_watcherToken.IsCancellationRequested)
                 {
-                    // check favorites against the cache
-                    foreach (var pd in Processes)
+                    await UpdateProcesses();
+                    var temp_processes = Processes.Clone();
+                    if (AutoHandleFavorites)
                     {
-                        try
+                        // check favorites against the cache
+                        foreach (var pd in temp_processes)
                         {
-                            foreach (var favProcess in UserPreferences.Instance.Favorites)
+                            try
                             {
-
-                                if (favProcess.Matches(pd))
+                                foreach (var favProcess in SettingsWrapper.Instance.Favorites)
                                 {
-                                    favProcess.IsRunning = true;
-                                    favProcess.RunningId = pd.Proc.Id;
-                                    await RemoveBorder(pd, favProcess);
+
+                                    if (favProcess.Matches(pd))
+                                    {
+                                        favProcess.IsRunning = true;
+                                        favProcess.RunningId = pd.Proc.Id;
+                                        await RemoveBorder(pd, favProcess);
+                                    }
                                 }
                             }
-                        }
-                        catch
-                        {
-                            // ignored
+                            catch
+                            {
+                                // ignored
+                            }
                         }
                     }
+                    await Task.Delay(TimeSpan.FromSeconds(SettingsWrapper.Instance.Settings.SlowWindowDetection is true ? 10 : 3));
                 }
-                await Task.Delay(TimeSpan.FromSeconds(UserPreferences.Instance.Settings.SlowWindowDetection is true ? 10 : 3));
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show($"Failed when watching processes.\n{exception.Message}\n{exception.StackTrace}");
             }
         }
 
@@ -148,7 +157,7 @@ namespace BorderlessGaming.Logic.Core
         {
             // If we made this process borderless at some point, then check for a favorite that matches and undo
             // some stuff to Windows.
-            foreach (var fav in UserPreferences.Instance.Favorites)
+            foreach (var fav in SettingsWrapper.Instance.Favorites)
             {
                 if (fav.Matches(pd))
                 {
@@ -188,7 +197,7 @@ namespace BorderlessGaming.Logic.Core
                     if (!process.NoAccess)
                     {
                         await TaskUtilities.StartTaskAndWait(() => { currentTitle = Native.GetWindowTitle(process.WindowHandle); },
-                            UserPreferences.Instance.Settings.SlowWindowDetection is true ? 10 : 2); shouldBePruned = process.WindowTitle != currentTitle;
+                            SettingsWrapper.Instance.Settings.SlowWindowDetection is true ? 10 : 2); shouldBePruned = process.WindowTitle != currentTitle;
                     }
                 }
                 if (shouldBePruned)
@@ -207,7 +216,7 @@ namespace BorderlessGaming.Logic.Core
                 {
                     if (!string.IsNullOrWhiteSpace(pd?.Proc?.ProcessName))
                     {
-                        if (UserPreferences.Instance.IsHidden(pd?.Proc?.ProcessName))
+                        if (SettingsWrapper.Instance.IsHidden(pd?.Proc?.ProcessName))
                         {
                             return;
                         }
