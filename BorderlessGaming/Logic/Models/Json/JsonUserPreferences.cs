@@ -55,13 +55,9 @@ namespace BorderlessGaming.Logic.Models.Json
                 InternalSave(preferences);
                 return preferences;
             }
-            using (var fileStream = new FileStream(JsonConfigPath, FileMode.OpenOrCreate))
-            {
-                using (var stream = new StreamReader(fileStream, Encoding.UTF8))
-                {
-                    preferences = JsonSerializer.Deserialize<JsonUserPreferences>(stream.ReadToEnd(), _jsonSerializerOptions);
-                }
-            }
+            using var fileStream = new FileStream(JsonConfigPath, FileMode.Truncate);
+            using var stream = new StreamReader(fileStream, Encoding.UTF8);
+            preferences = JsonSerializer.Deserialize<JsonUserPreferences>(stream.ReadToEnd(), _jsonSerializerOptions);
             var parseResults = Parser.Default.ParseArguments<StartupOptions>(Environment.GetCommandLineArgs());
             preferences.StartupOptions = parseResults.Errors.Any() ? new StartupOptions() : parseResults.Value;
             return preferences;
@@ -71,13 +67,12 @@ namespace BorderlessGaming.Logic.Models.Json
         {
             try
             {
-                using (var fileStream = new FileStream(JsonConfigPath, FileMode.OpenOrCreate))
-                {
-                    using (var stream = new StreamWriter(fileStream, Encoding.UTF8))
-                    {
-                        stream.Write(JsonSerializer.Serialize(instance, _jsonSerializerOptions));
-                    }
+                if (!File.Exists(JsonConfigPath)) {
+                    File.Create(JsonConfigPath).Close();
                 }
+                using var fs = new FileStream(JsonConfigPath, FileMode.Truncate);
+                using var sw = new StreamWriter(fs, Encoding.UTF8);
+                sw.Write(JsonSerializer.Serialize(instance, _jsonSerializerOptions));
             }
             catch (Exception e)
             {
