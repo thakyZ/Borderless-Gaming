@@ -38,7 +38,7 @@ namespace BorderlessGaming.Forms
         private void toolStripCheckForUpdates_CheckedChanged(object sender, EventArgs e)
         {
             SettingsWrapper.Instance.Settings.CheckForUpdates = toolStripCheckForUpdates.Checked;
-            SettingsWrapper.Instance.Save();
+            SettingsWrapper.Save();
         }
 
         #region Local data
@@ -81,65 +81,65 @@ namespace BorderlessGaming.Forms
         {
             AutoStart.Setup(toolStripRunOnStartup.Checked, "--silent --minimize");
             SettingsWrapper.Instance.Settings.RunOnStartup = toolStripRunOnStartup.Checked;
-            SettingsWrapper.Instance.Save();
+            SettingsWrapper.Save();
         }
 
         private void toolStripGlobalHotkey_CheckChanged(object sender, EventArgs e)
         {
             SettingsWrapper.Instance.Settings.UseGlobalHotkey = toolStripGlobalHotkey.Checked;
-            SettingsWrapper.Instance.Save();
+            SettingsWrapper.Save();
             RegisterHotkeys();
         }
 
         private void toolStripMouseLock_CheckChanged(object sender, EventArgs e)
         {
             SettingsWrapper.Instance.Settings.UseMouseLockHotKey = toolStripMouseLock.Checked;
-            SettingsWrapper.Instance.Save();
+            SettingsWrapper.Save();
             RegisterHotkeys();
         }
 
         private void useMouseHideHotkeyWinScrollLockToolStripMenuItem_CheckChanged(object sender, EventArgs e)
         {
             SettingsWrapper.Instance.Settings.UseMouseHideHotKey = toolStripMouseHide.Checked;
-            SettingsWrapper.Instance.Save();
+            SettingsWrapper.Save();
             RegisterHotkeys();
         }
 
         private void startMinimizedToTrayToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
             SettingsWrapper.Instance.Settings.StartMinimized = toolStripMinimizedToTray.Checked;
-            SettingsWrapper.Instance.Save();
+            SettingsWrapper.Save();
         }
 
         private void hideBalloonTipsToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
             SettingsWrapper.Instance.Settings.HideBalloonTips = toolStripHideBalloonTips.Checked;
-            SettingsWrapper.Instance.Save();
+            SettingsWrapper.Save();
         }
 
         private void closeToTrayToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
             SettingsWrapper.Instance.Settings.CloseToTray = toolStripCloseToTray.Checked;
-            SettingsWrapper.Instance.Save();
+            SettingsWrapper.Save();
         }
 
         private void useSlowerWindowDetectionToolStripMenuItem_Click(object sender, EventArgs e)
         {
             SettingsWrapper.Instance.Settings.SlowWindowDetection = toolStripSlowWindowDetection.Checked;
-            SettingsWrapper.Instance.Save();
+            SettingsWrapper.Save();
         }
 
         private async void viewFullProcessDetailsToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
 
         {
             SettingsWrapper.Instance.Settings.ViewAllProcessDetails = toolStripViewFullProcessDetails.Checked;
-            SettingsWrapper.Instance.Save();
+            SettingsWrapper.Save();
             await RefreshProcesses();
         }
 
         private async void resetHiddenProcessesToolStripMenuItem_Click(object sender, EventArgs e)
         {
-           SettingsWrapper.Instance.ResetHiddenProcesses();
+            SettingsWrapper.Instance.ResetHiddenProcesses();
             await RefreshProcesses();
         }
 
@@ -809,7 +809,7 @@ fav.PositionX.ToString()), out int favPositionX);
                     {
                         var tt = (ToolStripMenuItem)s;
                         fav.Screen = tt.Checked ? ProcessRectangle.ToProcessRectangle(screen.Bounds) : new ProcessRectangle();
-                        SettingsWrapper.Instance.Save();
+                        SettingsWrapper.Save();
                     };
                 }
                 // add supersize Option
@@ -822,7 +822,7 @@ fav.PositionX.ToString()), out int favPositionX);
                 contextFavScreen.DropDownItems[superIndex].Click += (s, ea) =>
                 {
                     fav.Screen = ProcessRectangle.ToProcessRectangle(superSize);
-                    SettingsWrapper.Instance.Save();
+                    SettingsWrapper.Save();
                 };
             }
         }
@@ -944,7 +944,7 @@ fav.PositionX.ToString()), out int favPositionX);
         private void ToolStripDisableSteamIntegrationCheckChanged(object sender, EventArgs e)
         {
             SettingsWrapper.Instance.Settings.DisableSteamIntegration = _toolStripDisableSteamIntegration.Checked;
-            SettingsWrapper.Instance.Save();
+            SettingsWrapper.Save();
         }
 
         private void MainWindow_Shown(object sender, EventArgs e)

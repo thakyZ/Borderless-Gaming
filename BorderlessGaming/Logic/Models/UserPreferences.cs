@@ -41,8 +41,8 @@ namespace BorderlessGaming.Logic.Models
             try {
                 File.WriteAllBytes(AppEnvironment.ConfigPath, Encode());
             } catch (Exception e) {
-               ExceptionHandler.LogException(e);
-               Environment.FailFast("Failed to save user preferences", e);
+                ExceptionHandler.LogException(e);
+                Environment.FailFast("Failed to save user preferences", e);
             }
         }
 
@@ -58,9 +58,8 @@ namespace BorderlessGaming.Logic.Models
                 var tmp = Favorites;
                 Extensions.CollectionExtensions.Add(ref tmp, favorite);
                 Favorites = tmp;
-                Save();
+                SettingsWrapper.Save();
                 callback();
-             
             }
         }
 
@@ -72,7 +71,7 @@ namespace BorderlessGaming.Logic.Models
                 var tmp = Favorites.ToList();
                 tmp.Remove(Favorites.FirstOrDefault(fav => fav.SearchText.Equals(favorite.SearchText)));
                 Favorites = tmp.ToArray();
-                Save();
+                SettingsWrapper.Save();
                 callback();
             }
         }
@@ -84,14 +83,14 @@ namespace BorderlessGaming.Logic.Models
                 var tmp = HiddenProcesses;
                 Extensions.CollectionExtensions.Add(ref tmp, processName);
                 HiddenProcesses = tmp;
-                Save();
+                SettingsWrapper.Save();
             }
         }
 
         public void ResetHiddenProcesses()
         {
             HiddenProcesses = Array.Empty<string>();
-            Save();
+            SettingsWrapper.Save();
         }
         public bool IsHidden(Process process)
         {

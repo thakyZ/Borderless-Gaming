@@ -34,7 +34,6 @@ namespace BorderlessGaming.Logic.Models
 
         public bool Matches(ProcessDetails pd)
         {
-            
             return Type == FavoriteType.Process && pd.BinaryName == SearchText ||
                    Type == FavoriteType.Title && pd.WindowTitle == SearchText ||
                    Type == FavoriteType.Regex && Regex.IsMatch(pd.WindowTitle, SearchText);

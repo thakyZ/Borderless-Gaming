@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using MessageBox = System.Windows.Forms.MessageBox;
 
 using BorderlessGaming.Logic.Misc;
@@ -13,7 +13,7 @@ namespace BorderlessGaming.Logic.Models
 
         private readonly UserPreferences _userPreferences;
 
-        private readonly bool useJson;
+        private readonly bool useJson = false;
 
         public static UserPreferences Instance
         {
@@ -47,6 +47,10 @@ namespace BorderlessGaming.Logic.Models
                     JsonTools.ConvertFromBebop(output).Save();
                     return output;
                 }
+            }
+            else if (!File.Exists(AppEnvironment.ConfigPath) && File.Exists(JsonUserPreferences.JsonConfigPath))
+            {
+                return JsonTools.ConvertToBebop(JsonUserPreferences.Instance);
             }
             return UserPreferences.Instance;
         }
