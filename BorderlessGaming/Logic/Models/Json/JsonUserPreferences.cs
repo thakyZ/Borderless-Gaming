@@ -43,23 +43,29 @@ namespace BorderlessGaming.Logic.Models.Json
 
         private static JsonUserPreferences Load()
         {
-            JsonUserPreferences preferences;
-            if (!File.Exists(JsonConfigPath))
+            JsonUserPreferences preferences = new JsonUserPreferences()
             {
-                preferences = new JsonUserPreferences()
+                Favorites = [],
+                HiddenProcesses = [],
+                Settings = JsonAppSettings.CreateDefault()
+            };
+            try
+            {
+                if (!File.Exists(JsonConfigPath))
                 {
-                    Favorites = [],
-                    HiddenProcesses = [],
-                    Settings = JsonAppSettings.CreateDefault()
-                };
-                InternalSave(preferences);
-                return preferences;
+                    InternalSave(preferences);
+                    return preferences;
+                }
+                using var fileStream = new FileStream(JsonConfigPath, FileMode.Open);
+                preferences = JsonSerializer.Deserialize<JsonUserPreferences>(fileStream, _jsonSerializerOptions);
+                var parseResults = Parser.Default.ParseArguments<StartupOptions>(Environment.GetCommandLineArgs());
+                preferences.StartupOptions = parseResults.Errors.Any() ? new StartupOptions() : parseResults.Value;
             }
-            using var fileStream = new FileStream(JsonConfigPath, FileMode.Truncate);
-            using var stream = new StreamReader(fileStream, Encoding.UTF8);
-            preferences = JsonSerializer.Deserialize<JsonUserPreferences>(stream.ReadToEnd(), _jsonSerializerOptions);
-            var parseResults = Parser.Default.ParseArguments<StartupOptions>(Environment.GetCommandLineArgs());
-            preferences.StartupOptions = parseResults.Errors.Any() ? new StartupOptions() : parseResults.Value;
+            catch (Exception e)
+            {
+                ExceptionHandler.LogException(e);
+                Environment.FailFast("Failed to save user preferences", e);
+            }
             return preferences;
         }
 
@@ -72,7 +78,8 @@ namespace BorderlessGaming.Logic.Models.Json
                 }
                 using var fs = new FileStream(JsonConfigPath, FileMode.Truncate);
                 using var sw = new StreamWriter(fs, Encoding.UTF8);
-                sw.Write(JsonSerializer.Serialize(instance, _jsonSerializerOptions));
+                var jsonString = JsonSerializer.Serialize(instance, _jsonSerializerOptions);
+                sw.Write(jsonString);
             }
             catch (Exception e)
             {
@@ -97,7 +104,7 @@ namespace BorderlessGaming.Logic.Models.Json
             {
                 var tmp = Favorites.ToArray();
                 Extensions.CollectionExtensions.Add(ref tmp, favorite);
-                Favorites = [.. tmp];
+                Favorites = [..tmp];
                 Save();
                 callback();
             }

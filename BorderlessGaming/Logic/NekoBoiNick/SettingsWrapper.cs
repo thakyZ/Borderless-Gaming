@@ -41,12 +41,10 @@ namespace BorderlessGaming.Logic.Models
                 {
                     return JsonTools.ConvertToBebop(JsonUserPreferences.Instance);
                 }
-                else
-                {
-                    var output = UserPreferences.Instance;
-                    JsonTools.ConvertFromBebop(output).Save();
-                    return output;
-                }
+
+                var output = UserPreferences.Instance;
+                JsonTools.ConvertFromBebop(output).Save();
+                return output;
             }
             else if (!File.Exists(AppEnvironment.ConfigPath) && File.Exists(JsonUserPreferences.JsonConfigPath))
             {
