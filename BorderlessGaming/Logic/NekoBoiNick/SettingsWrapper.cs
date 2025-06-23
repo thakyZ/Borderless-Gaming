@@ -1,41 +1,56 @@
+using System;
 using System.IO;
-using MessageBox = System.Windows.Forms.MessageBox;
-
 using BorderlessGaming.Logic.Misc;
 using BorderlessGaming.Logic.Models.Json;
+using BorderlessGaming.Logic.NekoBoiNick;
 
 #nullable enable
+
 namespace BorderlessGaming.Logic.Models
 {
+    /// <summary>
+    /// Wrapper class for the original <see cref="Bebop" /> settings and the newer
+    /// <see cref="BorderlessGaming.Logic.Models.Json" /> settings.
+    /// </summary>
     internal class SettingsWrapper
     {
-        private static SettingsWrapper? _instance = null;
+        /// <summary>
+        /// Instance of this <see cref="SettingsWrapper" />
+        /// </summary>
+        private static Lazy<SettingsWrapper> _instance = new Lazy<SettingsWrapper>(() => new SettingsWrapper());
 
-        private readonly UserPreferences _userPreferences;
+        /// <summary>
+        /// Gets the instance of the user preferences.
+        /// </summary>
+        private UserPreferences UserPreferences { get; }
+        
+        /// <summary>
+        /// Gets whether the application should use json or not.
+        /// </summary>
+        private bool UseJson { get; }
 
-        private readonly bool useJson = false;
+        /// <summary>
+        /// Gets the instance of the user preference externally.
+        /// </summary>
+        public static UserPreferences Instance => _instance.Value.UserPreferences;
 
-        public static UserPreferences Instance
-        {
-            get
-            {
-                _instance ??= new();
-                return _instance._userPreferences;
-            }
-        }
-
+        /// <summary>
+        /// Creates a new instance of <see cref="SettingsWrapper" />
+        /// </summary>
         private SettingsWrapper()
         {
-            if (File.Exists(Path.Join(AppEnvironment.ExecutableDirectory, ".use_json")))
+            if (File.Exists(Path.Join(AppEnvironment.ExecutableDirectory, ".use_json"))
+                || Environment.GetEnvironmentVariables().Contains("BORDERLESS_WINDOWED_USE_JSON", "true"))
             {
-                useJson = true;
+                this.UseJson = true;
             }
-            _userPreferences = Load();
+
+            this.UserPreferences = Load();
         }
 
         private UserPreferences Load()
         {
-            if (useJson)
+            if (this.UseJson)
             {
                 if (File.Exists(JsonUserPreferences.JsonConfigPath))
                 {
@@ -55,11 +70,10 @@ namespace BorderlessGaming.Logic.Models
 
         public static void Save()
         {
-            _instance ??= new();
-            if (_instance.useJson) {
-                JsonTools.ConvertFromBebop(_instance._userPreferences).Save();
+            if (_instance.Value.UseJson) {
+                JsonTools.ConvertFromBebop(_instance.Value.UserPreferences).Save();
             } else {
-                _instance._userPreferences.Save();
+                _instance.Value.UserPreferences.Save();
             }
         }
     }
