@@ -30,8 +30,6 @@ namespace BorderlessGaming.Logic.Models.Json
         public int Width { get; set; }
         public int Height { get; set; }
 
-        /// <summary>
-        /// </summary>
         public JsonProcessRectangle() : base() { }
 
         public JsonProcessRectangle(int x, int y, int width, int height) => (X, Y, Width, Height) = (x, y, width, height);
