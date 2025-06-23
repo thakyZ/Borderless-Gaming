@@ -282,7 +282,7 @@ namespace BorderlessGaming.Logic.Models.Json
             }
             if (obj is UserPreferences other)
             {
-                return (Favorites is null ? other.Favorites is null : other.Favorites is not null && Favorites.SequenceEqual(other.Favorites))
+                return (Favorites is null ? other.Favorites is null : other.Favorites is not null && this.Favorites.SequenceEqual<JsonFavorite, Favorite>(other.Favorites))
                     && (HiddenProcesses is null ? other.HiddenProcesses is null : other.HiddenProcesses is not null && Enumerable.SequenceEqual(HiddenProcesses, other.HiddenProcesses))
                     && Settings == other.Settings;
             }
