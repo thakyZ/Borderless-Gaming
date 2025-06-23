@@ -16,7 +16,13 @@ namespace BorderlessGaming.Logic.Core
 
     public class ProcessWatcher
     {
-        private readonly Form _form;
+        #nullable enable
+
+        private readonly Form? _form;
+        private readonly System.Windows.Window? _window;
+
+        #nullable restore
+
         private CancellationTokenSource _watcherToken;
         private Action<ProcessDetails, bool> _callback;
 
@@ -30,6 +36,13 @@ namespace BorderlessGaming.Logic.Core
         public ProcessWatcher(Form form)
         {
             _form = form;
+            AutoHandleFavorites = true;
+            Processes = new List<ProcessDetails>();
+        }
+
+        public ProcessWatcher(System.Windows.Window window)
+        {
+            _window = window;
             AutoHandleFavorites = true;
             Processes = new List<ProcessDetails>();
         }
@@ -95,7 +108,7 @@ namespace BorderlessGaming.Logic.Core
         }
 
         /// <summary>
-        ///     remove the menu, resize the window, remove border, and maximize
+        /// remove the menu, resize the window, remove border, and maximize
         /// </summary>
         public async Task RemoveBorder(ProcessDetails pd, Favorite favDetails = null, bool overrideTimeout = false)
         {
@@ -113,7 +126,12 @@ namespace BorderlessGaming.Logic.Core
                     overrideTimeout);
                 return;
             }
-            await Manipulation.MakeWindowBorderless(pd, _form, pd.WindowHandle, new Rectangle(), favDetails ?? Favorite.FromWindow(pd));
+            if (_form != null) {
+                await Manipulation.MakeWindowBorderless(pd, _form, pd.WindowHandle, new Rectangle(), favDetails ?? Favorite.FromWindow(pd));
+            }
+            if (_window != null) {
+                await Manipulation.MakeWindowBorderless(pd, _window, pd.WindowHandle, new Rectangle(), favDetails ?? Favorite.FromWindow(pd));
+            }
         }
 
         /// <summary>
@@ -130,7 +148,12 @@ namespace BorderlessGaming.Logic.Core
             }
 
             var pd = FromHandle(hWnd);
-            await Manipulation.MakeWindowBorderless(pd, _form, hWnd, screen.Bounds, favDetails ?? Favorite.FromWindow(pd));
+            if (_form != null) {
+                await Manipulation.MakeWindowBorderless(pd, _form, hWnd, screen.Bounds, favDetails ?? Favorite.FromWindow(pd));
+            }
+            if (_window != null) {
+                await Manipulation.MakeWindowBorderless(pd, _window, hWnd, screen.Bounds, favDetails ?? Favorite.FromWindow(pd));
+            }
         }
 
         /// <summary>
@@ -146,11 +169,16 @@ namespace BorderlessGaming.Logic.Core
                 task.Wait(TimeSpan.FromSeconds(10));
             }
             var pd = FromHandle(hWnd);
-            await Manipulation.MakeWindowBorderless(pd, _form, hWnd, targetFrame, favDetails ?? Favorite.FromWindow(pd));
+            if (_form != null) {
+                await Manipulation.MakeWindowBorderless(pd, _form, hWnd, targetFrame, favDetails ?? Favorite.FromWindow(pd));
+            }
+            if (_window != null) {
+                await Manipulation.MakeWindowBorderless(pd, _window, hWnd, targetFrame, favDetails ?? Favorite.FromWindow(pd));
+            }
         }
 
         /// <summary>
-        ///     Handle a removed process
+        /// Handle a removed process
         /// </summary>
         /// <param name="pd"></param>
         private void HandlePrunedProcess(ProcessDetails pd)
@@ -168,7 +196,12 @@ namespace BorderlessGaming.Logic.Core
                     }
                     if (fav.HideMouseCursor)
                     {
-                        Manipulation.ToggleMouseCursorVisibility(_form, Boolstate.True);
+                        if (_form != null) {
+                            Manipulation.ToggleMouseCursorVisibility(_form, Boolstate.True);
+                        }
+                        if (_window != null) {
+                            Manipulation.ToggleMouseCursorVisibility(_window, Boolstate.True);
+                        }
                     }
                 }
             }
@@ -181,6 +214,13 @@ namespace BorderlessGaming.Logic.Core
                 if (_form != null)
                 {
                     if (_form.WindowState == FormWindowState.Minimized || !_form.Visible)
+                    {
+                        return;
+                    }
+                }
+                if (_window != null)
+                {
+                    if (_window.WindowState == System.Windows.WindowState.Minimized || !_window.IsVisible)
                     {
                         return;
                     }
