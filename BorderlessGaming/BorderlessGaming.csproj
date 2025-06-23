@@ -1,10 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
     <OutputType>WinExe</OutputType>
     <PublishUrl>publish\</PublishUrl>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <PublishSingleFile>true</PublishSingleFile>
@@ -33,6 +34,7 @@
   <ItemGroup>
     <Content Include="BorderlessGaming_new.ico" />
     <EmbeddedResource Include="Resources\master-glyph.png" />
+    <EmbeddedResource Include="Windows\AppWPF.xaml" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Remove="Properties\Resources.de.resx" />
@@ -43,8 +45,13 @@
     <None Remove="app.manifest" />
   </ItemGroup>
   <ItemGroup>
+    <Page Remove="Windows\AppWPF.xaml" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="bebop" Version="2.7.4" />
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
+    <PackageReference Include="Extended.Wpf.Toolkit" Version="4.7.25104.5739" />
+    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
     <PackageReference Include="TaskScheduler" Version="2.10.1" />
   </ItemGroup>
   <ItemGroup>
@@ -65,4 +72,24 @@
   <Target Name="ZipLanguages" BeforeTargets="Publish">
     <ZipDirectory SourceDirectory="$(ProjectDir)..\Languages" DestinationFile="$(PublishDir)\Languages.zip" Overwrite="true" />
   </Target>
+  <ItemGroup>
+    <Compile Update="Properties\Settings.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup Label="XAML Designer">
+    <Page Update="$(ProjectDir)Windows\AboutWPF.xaml" Generator="MSBuild:Compile" XamlRuntime="Wpf" SubType="Designer" LogicalName="BorderlessGaming.NekoBoiNick.Resources.XAML.About.xaml" />
+    <EmbeddedResource Update="$(ProjectDir)Dialog\AppWPF.xaml" Generator="MSBuild:Compile" XamlRuntime="Wpf" SubType="Designer" LogicalName="BorderlessGaming.NekoBoiNick.Resources.XAML.App.xaml" />
+    <None Update="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Page Update="$(ProjectDir)Windows\DesktopAreaSelectorWPF.xaml" Generator="MSBuild:Compile" XamlRuntime="Wpf" SubType="Designer" LogicalName="BorderlessGaming.NekoBoiNick.Resources.XAML.DesktopAreaSelector.xaml" />
+    <Page Update="$(ProjectDir)Dialog\InputSizeWPF.xaml" Generator="MSBuild:Compile" XamlRuntime="Wpf" SubType="Designer" LogicalName="BorderlessGaming.NekoBoiNick.Resources.XAML.InputSize.xaml" />
+    <Page Update="$(ProjectDir)Dialog\InputTextWPF.xaml" Generator="MSBuild:Compile" XamlRuntime="Wpf" SubType="Designer" LogicalName="BorderlessGaming.NekoBoiNick.Resources.XAML.InputText.xaml" />
+    <Page Update="$(ProjectDir)Dialog\MainWindowWPF.xaml" Generator="MSBuild:Compile" XamlRuntime="Wpf" SubType="Designer" LogicalName="BorderlessGaming.NekoBoiNick.Resources.XAML.MainWindow.xaml" />
+  </ItemGroup>
 </Project>
