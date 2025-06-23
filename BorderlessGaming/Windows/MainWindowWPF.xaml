@@ -1,0 +1,139 @@
+<Window x:Class="BorderlessGaming.Windows.MainWindowWPF"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="clr-namespace:BorderlessGaming.Windows"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:viewModel="clr-namespace:BorderlessGaming.Windows.ViewModels"
+        Title="{Binding Title}"
+        Width="493"
+        Height="362"
+        d:DataContext="{d:DesignInstance viewModel:MainWindowViewModel}"
+        mc:Ignorable="d">
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Resources/MainWindowResources.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+  <DockPanel Grid.Row="0"
+             Grid.Column="0"
+             LastChildFill="True"
+             OverridesDefaultStyle="True">
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="{Binding OptionsButtonLabel}">
+        <MenuItem.ContextMenu>
+          <ContextMenu>
+            <MenuItem Command="{Binding RunOnWindowsStartupMenuItemClicked}" Header="{Binding RunOnWindowsStartupMenuItemLabel}" />
+            <MenuItem Header="{Binding LanguagesMenuItemLabel}">
+              <MenuItem.ContextMenu>
+                <ContextMenu ItemsSource="{Binding LanguagesMenuItemContextMenuItems}" />
+              </MenuItem.ContextMenu>
+            </MenuItem>
+            <MenuItem Command="{Binding CheckForUpdatesMenuItemClicked}" Header="{Binding CheckForUpdatesMenuItemLabel}" />
+            <Separator />
+            <MenuItem Command="{Binding UseGlobalHotkeyMenuItemClicked}" Header="{Binding UseGlobalHotkeyMenuItemLabel}" />
+            <MenuItem Command="{Binding UseMouseLockHotkeyMenuItemClicked}" Header="{Binding UseMouseLockHotkeyMenuItemLabel}" />
+            <MenuItem Command="{Binding UseMouseHideHotkeyMenuItemClicked}" Header="{Binding UseMouseHideHotkeyMenuItemLabel}" />
+            <Separator />
+            <MenuItem Command="{Binding StartMinimizedToTrayMenuItemClicked}" Header="{Binding StartMinimizedToTrayMenuItemLabel}" />
+            <MenuItem Command="{Binding CloseToTrayMenuItemClicked}" Header="{Binding CloseToTrayMenuItemLabel}" />
+            <MenuItem Command="{Binding HideBalloonTipsMenuItemClicked}" Header="{Binding HideBalloonTipsMenuItemLabel}" />
+            <MenuItem Command="{Binding UseSlowerWindowDetectionMenuItemClicked}" Header="{Binding UseSlowerWindowDetectionMenuItemLabel}" />
+            <MenuItem Command="{Binding ViewFullProcessDetailsMenuItemClicked}" Header="{Binding ViewFullProcessDetailsMenuItemLabel}" />
+            <Separator />
+            <MenuItem Command="{Binding ExitMenuItemClicked}" Header="{Binding ExitMenuItemLabel}" />
+          </ContextMenu>
+        </MenuItem.ContextMenu>
+      </MenuItem>
+      <MenuItem Header="{Binding ToolsButtonLabel}">
+        <MenuItem.ContextMenu>
+          <ContextMenu>
+            <MenuItem Command="{Binding PauseAutomaticProcessingMenuItemClicked}" Header="{Binding PauseAutomaticProcessingMenuItemLabel}" />
+            <MenuItem Command="{Binding OpenDataFolderMenuItemClicked}" Header="{Binding OpenDataFolderMenuItemLabel}" />
+            <Separator />
+            <MenuItem Command="{Binding ToggleMouseCursorVisibilityMenuItemClicked}" Header="{Binding ToggleMouseCursorVisibilityMenuItemLabel}" />
+            <MenuItem Command="{Binding ToggleWindowsTaskbarVisibilityMenuItemClicked}" Header="{Binding ToggleWindowsTaskbarVisibilityMenuItemLabel}" />
+            <Separator />
+            <MenuItem Command="{Binding FullApplicationRefreshMenuItemClicked}" Header="{Binding FullApplicationRefreshMenuItemLabel}" />
+          </ContextMenu>
+        </MenuItem.ContextMenu>
+      </MenuItem>
+      <MenuItem Header="{Binding HelpButtonLabel}">
+        <MenuItem.ContextMenu>
+          <ContextMenu>
+            <MenuItem Command="{Binding UsageGuideMenuItemClicked}" Header="{Binding UsageGuideMenuItemLabel}" />
+            <MenuItem Command="{Binding RegexReferenceMenuItemClicked}" Header="{Binding RegexReferenceMenuItemLabel}" />
+            <Separator />
+            <MenuItem Command="{Binding ReportABugMenuItemClicked}" Header="{Binding ReportABugMenuItemLabel}" />
+            <MenuItem Command="{Binding SupportUsMenuItemClicked}" Header="{Binding SupportUsMenuItemLabel}" />
+            <Separator />
+            <MenuItem Command="{Binding AboutMenuItemClicked}" Header="{Binding AboutMenuItemLabel}" />
+          </ContextMenu>
+        </MenuItem.ContextMenu>
+      </MenuItem>
+    </Menu>
+    <StatusBar Grid.Row="2"
+               Grid.Column="0"
+               DockPanel.Dock="Bottom">
+      <Label>
+        <TextBlock Text="{Binding StatusLabel}" />
+      </Label>
+    </StatusBar>
+    <Grid Grid.Row="1"
+          Grid.Column="0"
+          HorizontalAlignment="Stretch"
+          VerticalAlignment="Stretch">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="49" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+      <Label Grid.Row="0" Grid.Column="0">
+        <TextBlock FontWeight="Bold" Text="{Binding ApplicationsLabel}" />
+      </Label>
+      <Label Grid.Row="0" Grid.Column="2">
+        <TextBlock FontWeight="Bold" Text="{Binding FavoritesAutomaticLabel}" />
+      </Label>
+      <ListBox Grid.Row="1"
+               Grid.Column="0"
+               ItemsSource="{Binding ApplicationsListBoxItemsSource}" />
+      <StackPanel Grid.Row="1"
+                  Grid.Column="1"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
+                  Orientation="Vertical">
+        <Button Margin="4,3,4,3"
+                Padding="5,5,5,5"
+                Command="{Binding FavoriteButtonClicked}">
+          <Image Source="{Binding FavoiteButtonIcon}" />
+        </Button>
+        <Button Margin="4,3,4,3"
+                Padding="5,5,5,5"
+                Command="{Binding UnfavoriteButtonClicked}">
+          <Image Source="{Binding UnfavoiteButtonIcon}" />
+        </Button>
+        <Button Margin="4,3,4,3"
+                Padding="5,5,5,5"
+                Command="{Binding MakeBordelessButtonClicked}">
+          <Image Source="{Binding MakeBordelessButtonIcon}" />
+        </Button>
+        <Button Margin="4,3,4,3"
+                Padding="5,5,5,5"
+                Command="{Binding RestoreWindowButtonClicked}">
+          <Image Source="{Binding RestoreWindowButtonIcon}" />
+        </Button>
+      </StackPanel>
+      <ListBox Grid.Row="1"
+               Grid.Column="2"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Stretch"
+               ItemsSource="{Binding FavoriteListBoxItemsSource}" />
+    </Grid>
+  </DockPanel>
+</Window>

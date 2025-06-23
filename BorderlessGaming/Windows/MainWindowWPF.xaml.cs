@@ -1,0 +1,1175 @@
+﻿#nullable enable
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
+using System.Windows.Controls.Primitives;
+using BorderlessGaming.Logic.Core;
+using BorderlessGaming.Logic.Extensions;
+using BorderlessGaming.Logic.Models;
+using BorderlessGaming.Logic.Steam;
+using BorderlessGaming.Logic.Misc;
+using BorderlessGaming.Logic.Windows;
+using BorderlessGaming.Properties;
+using BorderlessGaming.Windows.ViewModels;
+
+namespace BorderlessGaming.Windows
+{
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml
+    /// </summary>
+    public partial class MainWindowWPF : Window
+    {
+        private MainWindowViewModel ViewModel => (this.DataContext as MainWindowViewModel)!;
+        public MainWindowWPF()
+        {
+            InitializeComponent();
+            this.DataContext = new MainWindowViewModel(this);
+        }
+
+        #region Local data
+
+        #endregion
+
+
+        #region Application Menu Events
+
+        private void HandleProcessChange(ProcessDetails process, bool remove)
+        {
+            if (process == null)
+            {
+                return;
+            }
+            if (remove)
+            {
+                this.PerformSafely(() => lstProcesses.Items.Remove(process));
+            }
+            else
+            {
+                this.PerformSafely(() => lstProcesses.Items.Add(process));
+            }
+            this.PerformSafely(() => statusLabel.Text = $@"{LanguageManager.Data("moreOptionsLabel")} {DateTime.Now}");
+        }
+
+        private async Task RefreshProcesses()
+        {
+            //clear the process list and repopulate it
+            lstProcesses.Items.Clear();
+            await _watcher.Refresh();
+        }
+
+        private void usageGuideToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Tools.GotoSite("http://steamcommunity.com/app/388080/discussions/0/535151589899658778/");
+        }
+
+        #endregion
+
+        #region Application Form Events
+
+        private void lstProcesses_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            var validSelection = false;
+
+            if (lstProcesses.SelectedItem != null)
+            {
+                var pd = (ProcessDetails) lstProcesses.SelectedItem;
+
+                validSelection = pd.Manageable;
+            }
+
+            btnMakeBorderless.Enabled = btnRestoreWindow.Enabled = addSelectedItem.Enabled = validSelection;
+        }
+
+        private void lstFavorites_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            btnRemoveFavorite.Enabled = lstFavorites.SelectedItem != null;
+        }
+
+        private void setWindowTitleToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (lstProcesses.SelectedItem == null)
+            {
+                return;
+            }
+
+            var pd = (ProcessDetails) lstProcesses.SelectedItem;
+
+            if (!pd.Manageable)
+            {
+                return;
+            }
+
+            Native.SetWindowText(pd.WindowHandle,
+                InputText(LanguageManager.Data("setWindowTitleTitle"), LanguageManager.Data("setWindowTitlePrompt"),
+                    Native.GetWindowTitle(pd.WindowHandle)));
+        }
+
+        private async void hideThisProcessToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (lstProcesses.SelectedItem == null)
+            {
+                return;
+            }
+
+            var pd = (ProcessDetails) lstProcesses.SelectedItem;
+
+            if (!pd.Manageable)
+            {
+                return;
+            }
+
+            SettingsWrapper.Instance.ExcludeProcess(pd.BinaryName.Trim().ToLower());
+            await RefreshProcesses();
+        }
+
+        /// <summary>
+        /// Makes the currently selected process borderless
+        /// </summary>
+        private async void btnMakeBorderless_Click(object sender, EventArgs e)
+        {
+            if (lstProcesses.SelectedItem == null)
+            {
+                return;
+            }
+
+            var pd = (ProcessDetails) lstProcesses.SelectedItem;
+
+            if (!pd.Manageable)
+            {
+                return;
+            }
+
+            await _watcher.RemoveBorder(pd);
+        }
+
+        private void btnRestoreWindow_Click(object sender, EventArgs e)
+        {
+            if (lstProcesses.SelectedItem == null)
+            {
+                return;
+            }
+
+            var pd = (ProcessDetails) lstProcesses.SelectedItem;
+
+            if (!pd.Manageable)
+            {
+                return;
+            }
+
+            Manipulation.RestoreWindow(pd);
+        }
+
+        /// <summary>
+        /// adds the currently selected process to the favorites (by window title text)
+        /// </summary>
+        private void byTheWindowTitleTextToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (lstProcesses.SelectedItem == null)
+            {
+                return;
+            }
+
+            var pd = (ProcessDetails) lstProcesses.SelectedItem;
+
+            if (!pd.Manageable)
+            {
+                return;
+            }
+            var favorite = new Favorite
+            {
+                Type = FavoriteType.Title,
+                SearchText = pd.WindowTitle,
+                Screen = ProcessRectangle.Empty
+            };
+            SettingsWrapper.Instance.AddFavorite(favorite, () =>
+            {
+                lstFavorites.Items.Add(favorite);
+            });
+
+        }
+
+        /// <summary>
+        /// adds the currently selected process to the favorites (by process binary name)
+        /// </summary>
+        private void byTheProcessBinaryNameToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (lstProcesses.SelectedItem == null)
+            {
+                return;
+            }
+
+            var pd = (ProcessDetails) lstProcesses.SelectedItem;
+
+            if (!pd.Manageable)
+            {
+                return;
+            }
+          var favorite = new Favorite
+          {
+              Type = FavoriteType.Process,
+              SearchText = pd.BinaryName,
+              Screen = ProcessRectangle.Empty
+          };
+            SettingsWrapper.Instance.AddFavorite(favorite, () =>
+            {
+                lstFavorites.Items.Add(favorite);
+            });
+        }
+
+        /// <summary>
+        /// adds the currently selected process to the favorites (by window title text)
+        /// </summary>
+        private void byTheWindowTitleTextregexToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (lstProcesses.SelectedItem == null)
+            {
+                return;
+            }
+
+            var pd = (ProcessDetails) lstProcesses.SelectedItem;
+
+            if (!pd.Manageable)
+            {
+                return;
+            }
+            var res = InputText("Add to favorites by RegEx string",
+                "Regex string (see the Help menu for reference)", pd.WindowTitle);
+            if (!string.IsNullOrWhiteSpace(res.Trim()))
+            {
+                var favorite = new Favorite
+                {
+                    Type = FavoriteType.Regex,
+                    SearchText = res,
+                    Screen = ProcessRectangle.Empty
+                };
+                SettingsWrapper.Instance.AddFavorite(favorite, () =>
+                {
+                    lstFavorites.Items.Add(favorite);
+                });
+            }
+        }
+        private string InputText(string sTitle, string sInstructions, string sDefaultValue = "")
+        {
+            try
+            {
+                using (var inputForm = new InputTextForm())
+                {
+                    inputForm.Title = sTitle;
+                    inputForm.Instructions = sInstructions;
+                    inputForm.Input = sDefaultValue;
+
+                    if (inputForm.ShowDialog() == DialogResult.OK)
+                    {
+                        return inputForm.Input;
+                    }
+
+                    return sDefaultValue;
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return string.Empty;
+        }
+        private void addSelectedItem_Click(object sender, EventArgs e)
+        {
+            if (lstProcesses.SelectedItem == null)
+            {
+                return;
+            }
+
+            var pd = (ProcessDetails) lstProcesses.SelectedItem;
+
+            if (!pd.Manageable)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(pd.WindowTitle))
+            {
+                byTheWindowTitleTextToolStripMenuItem_Click(sender, e);
+            }
+            else
+            {
+                byTheProcessBinaryNameToolStripMenuItem_Click(sender, e);
+            }
+        }
+
+        private void RefreshFavoritesList(Favorite fav)
+        {
+            //refreshing is done through observables so this method just readds the favorite
+            //to make it look like it updated and because i dont want to change all that code
+            SettingsWrapper.Instance.AddFavorite(fav, () =>
+            {
+                lstFavorites.Items.Add(fav);
+            });
+        }
+
+        /// <summary>
+        /// removes the currently selected entry from the favorites
+        /// </summary>
+        private void btnRemoveFavorite_Click(object sender, EventArgs e)
+        {
+            if (lstFavorites.SelectedItem == null)
+            {
+                return;
+            }
+            var fav = (Favorite) lstFavorites.SelectedItem;
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+              lstFavorites.Items.Remove(fav);
+            });
+        }
+
+        private void removeMenusToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (lstFavorites.SelectedItem == null)
+            {
+                return;
+            }
+
+            var fav = (Favorite) lstFavorites.SelectedItem;
+
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+                lstFavorites.Items.Remove(fav);
+            });
+            fav.RemoveMenus = toolStripRemoveMenus.Checked;
+            RefreshFavoritesList(fav);
+        }
+
+        private void alwaysOnTopToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (lstFavorites.SelectedItem == null)
+            {
+                return;
+            }
+
+            var fav = (Favorite) lstFavorites.SelectedItem;
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+                lstFavorites.Items.Remove(fav);
+            });
+            fav.TopMost = toolStripAlwaysOnTop.Checked;
+            RefreshFavoritesList(fav);
+        }
+
+        private void adjustWindowBoundsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var fav = (Favorite) lstFavorites.SelectedItem;
+
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+                lstFavorites.Items.Remove(fav);
+            });
+            var (favOffsetL, favOffsetR, favOffsetT, favOffsetB) = InputSize(LanguageManager.Data("adjustWindowBoundsTitle"), LanguageManager.Data("adjustWindowBoundsLeft"), LanguageManager.Data("adjustWindowBoundsRight"), LanguageManager.Data("adjustWindowBoundsTop"), LanguageManager.Data("adjustWindowBoundsBottom"), false, null, fav.PositionX, fav.PositionY, fav.PositionWidth, fav.PositionHeight);
+            /*
+            int.TryParse(
+InputText(LanguageManager.Data("adjustWindowBoundsTitle"),
+string.Format(LanguageManager.Data("adjustWindowBoundsPrompt"), LanguageManager.Data("adjustWindowBoundsLeft")), fav.OffsetLeft.ToString()),
+out int favOffsetL);
+            int.TryParse(
+               InputText(LanguageManager.Data("adjustWindowBoundsTitle"),
+                   string.Format(LanguageManager.Data("adjustWindowBoundsPrompt"), LanguageManager.Data("adjustWindowBoundsRight")), fav.OffsetRight.ToString()),
+                out int favOffsetR);
+            int.TryParse(
+                InputText(LanguageManager.Data("adjustWindowBoundsTitle"),
+                    string.Format(LanguageManager.Data("adjustWindowBoundsPrompt"), LanguageManager.Data("adjustWindowBoundsTop")), fav.OffsetTop.ToString()),
+                out int favOffsetT);
+            int.TryParse(
+                InputText(LanguageManager.Data("adjustWindowBoundsTitle"),
+                    string.Format(LanguageManager.Data("adjustWindowBoundsPrompt"), LanguageManager.Data("adjustWindowBoundsBottom")), fav.OffsetBottom.ToString()),
+                out int favOffsetB);
+            */
+
+            fav.OffsetLeft = favOffsetL;
+            fav.OffsetRight = favOffsetR;
+            fav.OffsetTop = favOffsetT;
+            fav.OffsetBottom = favOffsetB;
+
+            RefreshFavoritesList(fav);
+        }
+
+        private void automaximizeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var fav = (Favorite) lstFavorites.SelectedItem;
+
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+                lstFavorites.Items.Remove(fav);
+            });
+
+            fav.ShouldMaximize = toolStripAutomaximize.Checked;
+
+            if (fav.ShouldMaximize)
+            {
+                fav.Size = FavoriteSize.FullScreen;
+                fav.PositionX = 0;
+                fav.PositionY = 0;
+                fav.PositionWidth = 0;
+                fav.PositionHeight = 0;
+            }
+
+            RefreshFavoritesList(fav);
+        }
+
+        private void hideMouseCursorToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var fav = (Favorite) lstFavorites.SelectedItem;
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+                lstFavorites.Items.Remove(fav);
+            });
+            fav.HideMouseCursor = toolStripHideMouseCursor.Checked;
+            RefreshFavoritesList(fav);
+        }
+
+        private void hideWindowsTaskbarToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var fav = (Favorite) lstFavorites.SelectedItem;
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+                lstFavorites.Items.Remove(fav);
+            });
+
+            fav.HideWindowsTaskbar = toolStripHideWindowsTaskbar.Checked;
+
+            RefreshFavoritesList(fav);
+        }
+
+        private void setWindowSizeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var fav = (Favorite) lstFavorites.SelectedItem;
+
+
+            var result =
+                MessageBox.Show(
+                   LanguageManager.Data("setWindowSizeMousePrompt"),
+                   LanguageManager.Data("setWindowSizeMouseTitle"), MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+            if (result == DialogResult.Cancel)
+            {
+                return;
+            }
+
+            if (result == DialogResult.Yes)
+            {
+                using (var frmSelectArea = new DesktopAreaSelectorForm())
+                {
+                    if (frmSelectArea.ShowDialog() != DialogResult.OK)
+                    {
+                        return;
+                    }
+
+                    // Temporarily disable compiler warning CS1690: http://msdn.microsoft.com/en-us/library/x524dkh4.aspx
+                    //
+                    // We know what we're doing: everything is safe here.
+#pragma warning disable 1690
+                    fav.PositionX = frmSelectArea.CurrentTopLeft.X;
+                    fav.PositionY = frmSelectArea.CurrentTopLeft.Y;
+                    fav.PositionWidth = frmSelectArea.CurrentBottomRight.X - frmSelectArea.CurrentTopLeft.X;
+                    fav.PositionHeight = frmSelectArea.CurrentBottomRight.Y - frmSelectArea.CurrentTopLeft.Y;
+#pragma warning restore 1690
+                }
+            }
+            else // System.Windows.Forms.DialogResult.No
+            {
+                var (favPositionX, favPositionY, favPositionW, favPositionH) = InputSize(LanguageManager.Data("setWindowSizeTitle"), string.Format(LanguageManager.Data("setWindowSizePixelPrompt"), "X"), string.Format(LanguageManager.Data("setWindowSizePixelPrompt"), "Y"), LanguageManager.Data("setWindowSizeWidthPrompt"), LanguageManager.Data("setWindowSizeHeightPrompt"), false, null, fav.PositionX, fav.PositionY, fav.PositionWidth, fav.PositionHeight);
+                /*
+                int.TryParse(
+InputText(LanguageManager.Data("setWindowSizeTitle"), string.Format(LanguageManager.Data("setWindowSizePixelPrompt"), "X"),
+fav.PositionX.ToString()), out int favPositionX);
+                int.TryParse(
+                   InputText(LanguageManager.Data("setWindowSizeTitle"), string.Format(LanguageManager.Data("setWindowSizePixelPrompt"), "Y"),
+                        fav.PositionY.ToString()), out int favPositionY);
+                int.TryParse(InputText(LanguageManager.Data("setWindowSizeTitle"), LanguageManager.Data("setWindowSizeWidthPrompt"), fav.PositionWidth.ToString()),
+                    out int favPositionW);
+                int.TryParse(
+                    InputText(LanguageManager.Data("setWindowSizeTitle"), LanguageManager.Data("setWindowSizeHeightPrompt"), fav.PositionHeight.ToString()),
+                    out int favPositionH);
+                */
+                fav.PositionX = favPositionX;
+                fav.PositionHeight = favPositionH;
+                fav.PositionWidth = favPositionW;
+                fav.PositionY = favPositionY;
+            }
+
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+                lstFavorites.Items.Remove(fav);
+            });
+
+            if (fav.PositionWidth == 0 || fav.PositionHeight == 0)
+            {
+                fav.Size = FavoriteSize.FullScreen;
+            }
+            else
+            {
+                fav.Size = FavoriteSize.SpecificSize;
+                fav.ShouldMaximize = false;
+            }
+            RefreshFavoritesList(fav);
+        }
+
+        private void fullScreenToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var fav = (Favorite) lstFavorites.SelectedItem;
+
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+                lstFavorites.Items.Remove(fav);
+            });
+
+
+            fav.Size = toolStripFullScreen.Checked ? FavoriteSize.FullScreen : FavoriteSize.NoChange;
+
+            if (fav.Size == FavoriteSize.FullScreen)
+            {
+                fav.PositionX = 0;
+                fav.PositionY = 0;
+                fav.PositionWidth = 0;
+                fav.PositionHeight = 0;
+            }
+            else
+            {
+                fav.ShouldMaximize = false;
+            }
+
+            RefreshFavoritesList(fav);
+        }
+
+
+        private void noSizeChangeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var fav = (Favorite) lstFavorites.SelectedItem;
+
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+                lstFavorites.Items.Remove(fav);
+            });
+
+            fav.Size = toolStripNoSizeChange.Checked ? FavoriteSize.NoChange : FavoriteSize.FullScreen;
+
+            if (fav.Size == FavoriteSize.NoChange)
+            {
+                fav.ShouldMaximize = false;
+                fav.OffsetLeft = 0;
+                fav.OffsetRight = 0;
+                fav.OffsetTop = 0;
+                fav.OffsetBottom = 0;
+                fav.PositionX = 0;
+                fav.PositionY = 0;
+                fav.PositionWidth = 0;
+                fav.PositionHeight = 0;
+            }
+
+            RefreshFavoritesList(fav);
+        }
+
+        private void delayBorderlessToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var fav = (Favorite) lstFavorites.SelectedItem;
+
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+                lstFavorites.Items.Remove(fav);
+            });
+
+            fav.DelayBorderless = toolStripDelayBorderless.Checked;
+            RefreshFavoritesList(fav);
+        }
+
+        /// <summary>
+        /// Sets up the Favorite-ContextMenu according to the current state
+        /// </summary>
+        private void mnuFavoritesContext_Opening(object sender, CancelEventArgs e)
+        {
+            if (lstFavorites.SelectedItem == null)
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            var fav = (Favorite) lstFavorites.SelectedItem;
+            toolStripFullScreen.Checked = fav.Size == FavoriteSize.FullScreen;
+
+            toolStripMuteInBackground.Checked = fav.MuteInBackground;
+            toolStripAutomaximize.Checked = fav.ShouldMaximize;
+            toolStripAlwaysOnTop.Checked = fav.TopMost;
+            toolStripHideMouseCursor.Checked = fav.HideMouseCursor;
+            toolStripHideWindowsTaskbar.Checked = fav.HideWindowsTaskbar;
+            toolStripRemoveMenus.Checked = fav.RemoveMenus;
+
+            toolStripAutomaximize.Enabled = fav.Size == FavoriteSize.FullScreen;
+            toolStripAdjustWindowBounds.Enabled = fav.Size == FavoriteSize.FullScreen && !fav.ShouldMaximize;
+            toolStripSetSetWindowSize.Enabled = fav.Size != FavoriteSize.FullScreen;
+            toolStripSetSetWindowSize.Checked = fav.Size == FavoriteSize.SpecificSize;
+            toolStripNoSizeChange.Checked = fav.Size == FavoriteSize.NoChange;
+
+            editRegex.Visible = editRegex.Enabled = fav.Type == FavoriteType.Regex;
+            toolStripSetSetWindowSizeKeepRatio.Checked = fav.Size == FavoriteSize.SpecificSize;
+
+            if (Screen.AllScreens.Length < 2)
+            {
+                contextFavScreen.Visible = false;
+            }
+            else
+            {
+                contextFavScreen.Visible = true;
+
+                if (contextFavScreen.HasDropDownItems)
+                {
+                    contextFavScreen.DropDownItems.Clear();
+                }
+
+                var superSize = Screen.PrimaryScreen.Bounds;
+
+                foreach (var screen in Screen.AllScreens)
+                {
+                    superSize = Tools.GetContainingRectangle(superSize, screen.Bounds);
+
+                    // fix for a .net-bug on Windows XP
+                    var idx = screen.DeviceName.IndexOf('\0');
+                    var fixedDeviceName = idx > 0 ? screen.DeviceName.Substring(0, idx) : screen.DeviceName;
+
+                    var label = fixedDeviceName + (screen.Primary ? " (P)" : string.Empty);
+                    var index = contextFavScreen.DropDownItems.Add(new ToolStripMenuItem
+                    {
+                        Text =  label,
+                        CheckOnClick = true,
+                        Checked = fav.Screen?.Equals(ProcessRectangle.ToProcessRectangle(screen.Bounds)) ?? false
+                    });
+                    contextFavScreen.DropDownItems[index].Click += (s, ea) =>
+                    {
+                        var tt = (ToolStripMenuItem)s;
+                        fav.Screen = tt.Checked ? ProcessRectangle.ToProcessRectangle(screen.Bounds) : new ProcessRectangle();
+                        SettingsWrapper.Save();
+                    };
+                }
+                // add supersize Option
+                var superIndex = contextFavScreen.DropDownItems.Add(new ToolStripMenuItem
+                {
+                    Text = LanguageManager.Data("superSize"),
+                    CheckOnClick = true,
+                    Checked = fav.Screen?.Equals(ProcessRectangle.ToProcessRectangle(superSize)) ?? false
+                });
+                contextFavScreen.DropDownItems[superIndex].Click += (s, ea) =>
+                {
+                    fav.Screen = ProcessRectangle.ToProcessRectangle(superSize);
+                    SettingsWrapper.Save();
+                };
+            }
+        }
+
+        /// <summary>
+        /// Sets up the Process-ContextMenu according to the current state
+        /// </summary>
+        private void processContext_Opening(object sender, CancelEventArgs e)
+        {
+            if (lstProcesses.SelectedItem == null)
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            var pd = (ProcessDetails) lstProcesses.SelectedItem;
+
+            if (!pd.Manageable)
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            contextAddToFavs.Enabled = SettingsWrapper.Instance.CanAddFavorite(pd.BinaryName) &&
+                                       SettingsWrapper.Instance.CanAddFavorite(pd.WindowTitle);
+
+            if (Screen.AllScreens.Length < 2)
+            {
+                contextBorderlessOn.Visible = false;
+            }
+            else
+            {
+                contextBorderlessOn.Visible = true;
+
+                if (contextBorderlessOn.HasDropDownItems)
+                {
+                    contextBorderlessOn.DropDownItems.Clear();
+                }
+
+                var superSize = Screen.PrimaryScreen.Bounds;
+
+                foreach (var screen in Screen.AllScreens)
+                {
+                    superSize = Tools.GetContainingRectangle(superSize, screen.Bounds);
+
+                    // fix for a .net-bug on Windows XP
+                    var idx = screen.DeviceName.IndexOf('\0');
+                    var fixedDeviceName = idx > 0 ? screen.DeviceName.Substring(0, idx) : screen.DeviceName;
+
+                    var label = fixedDeviceName + (screen.Primary ? " (P)" : string.Empty);
+
+                    var tsi = new ToolStripMenuItem(label);
+                    tsi.Click += async (s, ea) => { await _watcher.RemoveBorder_ToSpecificScreen(pd, screen); };
+
+                    contextBorderlessOn.DropDownItems.Add(tsi);
+                }
+
+                // add supersize Option
+                var superSizeItem = new ToolStripMenuItem(LanguageManager.Data("superSize"));
+
+                superSizeItem.Click += async (s, ea) => { await _watcher.RemoveBorder_ToSpecificRect(pd, superSize); };
+
+                contextBorderlessOn.DropDownItems.Add(superSizeItem);
+            }
+        }
+
+        private ToolStripMenuItem _toolStripDisableSteamIntegration;
+
+        /// <summary>
+        /// Sets up the form
+        /// </summary>
+        private void MainWindow_Load(object sender, EventArgs e)
+        {
+            // set the title
+            Text = "Borderless Gaming " + Assembly.GetExecutingAssembly().GetName().Version.ToString(3) + ((Uac.Elevated) ? " [Administrator]" : "");
+
+            var settings = SettingsWrapper.Instance.Settings;
+            // load up settings
+            toolStripRunOnStartup.Checked = settings.RunOnStartup.GetValueOrDefault();
+            toolStripGlobalHotkey.Checked = settings.UseGlobalHotkey.GetValueOrDefault();
+            toolStripCheckForUpdates.Checked = settings.CheckForUpdates.GetValueOrDefault();
+            toolStripMouseLock.Checked = settings.UseMouseLockHotKey.GetValueOrDefault();
+            toolStripMouseHide.Checked = settings.UseMouseHideHotKey.GetValueOrDefault();
+            toolStripMinimizedToTray.Checked = settings.StartMinimized.GetValueOrDefault();
+            toolStripHideBalloonTips.Checked = settings.HideBalloonTips.GetValueOrDefault();
+            toolStripCloseToTray.Checked = settings.CloseToTray.GetValueOrDefault();
+            toolStripViewFullProcessDetails.Checked = settings.ViewAllProcessDetails.GetValueOrDefault();
+            toolStripSlowWindowDetection.Checked = settings.SlowWindowDetection.GetValueOrDefault();
+
+            // minimize the window if desired (hiding done in Shown)
+            if (settings.StartMinimized.GetValueOrDefault() || SettingsWrapper.Instance.StartupOptions.Minimize)
+            {
+                WindowState = FormWindowState.Minimized;
+            }
+            else
+            {
+                WindowState = FormWindowState.Normal;
+            }
+
+            if (SteamApi.IsLoaded && _toolStripDisableSteamIntegration == null)
+            {
+                _toolStripDisableSteamIntegration =
+                    new ToolStripMenuItem
+                    {
+                        Name = "toolStripDisableSteamIntegration",
+                        Size = new Size(254, 22),
+                        Text = LanguageManager.Data("toolStripDisableSteamIntegration"),
+                        ToolTipText = LanguageManager.Data("steamHint"),
+                        Checked = settings.DisableSteamIntegration.GetValueOrDefault(),
+                        CheckOnClick = true
+                    };
+                // let's do this before registering the CheckedChanged event
+                _toolStripDisableSteamIntegration.CheckedChanged +=
+                    ToolStripDisableSteamIntegrationCheckChanged;
+                toolsToolStripMenuItem.DropDownItems.Insert(0, _toolStripDisableSteamIntegration);
+            }
+        }
+
+        private void ToolStripDisableSteamIntegrationCheckChanged(object sender, EventArgs e)
+        {
+            SettingsWrapper.Instance.Settings.DisableSteamIntegration = _toolStripDisableSteamIntegration.Checked;
+            SettingsWrapper.Save();
+        }
+
+        private void MainWindow_Shown(object sender, EventArgs e)
+        {
+            // hide the window if desired (this doesn't work well in Load)
+            if (SettingsWrapper.Instance.Settings.StartMinimized.GetValueOrDefault() || SettingsWrapper.Instance.StartupOptions.Minimize)
+            {
+                Hide();
+            }
+            // initialize favorite list
+            foreach (var ni in SettingsWrapper.Instance.Favorites)
+            {
+                lstFavorites.Items.Add(ni);
+            }
+
+            // start Task API controller
+            _watcher.Start(HandleProcessChange);
+
+            // Update buttons' enabled/disabled state
+            lstProcesses_SelectedIndexChanged(sender, e);
+            lstFavorites_SelectedIndexChanged(sender, e);
+        }
+
+        /// <summary>
+        /// Cleans up when the application exits (main form closes)
+        /// </summary>
+        private void MainWindow_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            // Not allowed to exit the application if we've hidden the Windows taskbar.
+            //
+            // Make them exit the game that triggered the taskbar to be hidden -- or -- use a global hotkey to restore it.
+            if (Manipulation.WindowsTaskbarIsHidden)
+            {
+                _closingFromExitMenu = false;
+                e.Cancel = true;
+                return;
+            }
+
+            // If we're exiting -- or -- if we're closing-to-tray, then restore the mouse cursor.
+            //
+            // This prevents a scenario where the user can't (easily) get back to Borderless Gaming to undo the hidden mouse cursor.
+            Manipulation.ToggleMouseCursorVisibility(this, Boolstate.True);
+
+            // If the user didn't choose to exit from the tray icon context menu...
+            if (!_closingFromExitMenu)
+            {
+                // ... and they have the preference set to close-to-tray ...
+                if (SettingsWrapper.Instance.Settings.CloseToTray is true)
+                {
+                    // ... then minimize the app and do not exit (minimizing will trigger another event to hide the form)
+                    WindowState = FormWindowState.Minimized;
+                    e.Cancel = true;
+                    return;
+                }
+            }
+
+            // At this point, we're okay to exit the application
+
+            // Unregister all global hotkeys
+            UnregisterHotkeys();
+
+            // Hide the tray icon.  If we don't do this, then Environment.Exit() can sometimes ghost the icon in the
+            // Windows system tray area.
+            trayIcon.Visible = false;
+
+            // Overkill... the form should just close naturally.  Ideally we would just allow the form to close and
+            // the remaining code in Program.cs would execute (if there were any), but this is how Borderless Gaming has
+            // always exited and there may be a compatibility reason for it, so leaving it alone for now.
+            Environment.Exit(0);
+        }
+
+        private void addSelectedItem_MouseHover(object sender, EventArgs e)
+        {
+            var ttTemp = new ToolTip();
+            ttTemp.SetToolTip((Control) sender, LanguageManager.Data("addFavorite"));
+        }
+
+        private void btnRemoveFavorite_MouseHover(object sender, EventArgs e)
+        {
+            var ttTemp = new ToolTip();
+            ttTemp.SetToolTip((Control) sender, LanguageManager.Data("removeFavorite"));
+        }
+
+        private void btnMakeBorderless_MouseHover(object sender, EventArgs e)
+        {
+            var ttTemp = new ToolTip();
+            ttTemp.SetToolTip((Control) sender, LanguageManager.Data("makeBorderless"));
+        }
+
+        private void btnRestoreWindow_MouseHover(object sender, EventArgs e)
+        {
+            var ttTemp = new ToolTip();
+            ttTemp.SetToolTip((Control) sender, LanguageManager.Data("restoreBorders"));
+        }
+
+        #endregion
+
+        #region Tray Icon Events
+
+        private void trayIcon_DoubleClick(object sender, EventArgs e)
+        {
+            Show();
+            WindowState = FormWindowState.Normal;
+        }
+
+        private bool _closingFromExitMenu;
+        private readonly ProcessWatcher _watcher;
+
+        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            _closingFromExitMenu = true;
+            Close();
+        }
+
+        private void MainWindow_Resize(object sender, EventArgs e)
+        {
+            if (WindowState == FormWindowState.Minimized)
+            {
+                trayIcon.Visible = true;
+
+                if (SettingsWrapper.Instance.Settings.HideBalloonTips is true && SettingsWrapper.Instance.StartupOptions.Silent is false)
+                {
+                    // Display a balloon tooltip message for 2 seconds
+                    trayIcon.BalloonTipText = string.Format(Resources.TrayMinimized, "Borderless Gaming");
+                    trayIcon.ShowBalloonTip(2000);
+                }
+
+                if (!Manipulation.WindowsTaskbarIsHidden)
+                {
+                    Hide();
+                }
+            }
+        }
+
+        #endregion
+
+        #region Global HotKeys
+
+        /// <summary>
+        /// registers the global hotkeys
+        /// </summary>
+        private void RegisterHotkeys()
+        {
+            UnregisterHotkeys();
+
+            if (SettingsWrapper.Instance.Settings.UseGlobalHotkey is true)
+            {
+                Native.RegisterHotKey(Handle, GetType().GetHashCode(), MakeBorderlessHotKeyModifier,
+                    MakeBorderlessHotKey);
+            }
+
+            if (SettingsWrapper.Instance.Settings.UseMouseLockHotKey is true)
+            {
+                Native.RegisterHotKey(Handle, GetType().GetHashCode(), 0, MouseLockHotKey);
+            }
+
+            if (SettingsWrapper.Instance.Settings.UseMouseHideHotKey is true)
+            {
+                Native.RegisterHotKey(Handle, GetType().GetHashCode(), MouseHideHotKeyModifier, MouseHideHotKey);
+            }
+        }
+
+        /// <summary>
+        /// unregisters the global hotkeys
+        /// </summary>
+        private void UnregisterHotkeys()
+        {
+            Native.UnregisterHotKey(Handle, GetType().GetHashCode());
+        }
+
+        /// <summary>
+        /// Catches the Hotkeys
+        /// </summary>
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == Native.WM_HOTKEY)
+            {
+                var keystroke = ((uint) m.LParam >> 16) & 0x0000FFFF;
+                var keystrokeModifier = (uint) m.LParam & 0x0000FFFF;
+
+                // Global hotkey to make a window borderless
+                if (keystroke == MakeBorderlessHotKey && keystrokeModifier == MakeBorderlessHotKeyModifier)
+                {
+                    // Find the currently-active window
+                    var hCurrentActiveWindow = Native.GetForegroundWindow();
+
+                    // Only if that window isn't Borderless Windows itself
+                    if (hCurrentActiveWindow != Handle)
+                    {
+                        // Figure out the process details based on the current window handle
+                        var pd = _watcher.FromHandle(hCurrentActiveWindow);
+                        if (pd == null)
+                        {
+                            Task.WaitAll(_watcher.Refresh());
+                            pd = _watcher.FromHandle(hCurrentActiveWindow);
+                            if (pd == null)
+                            {
+                                return;
+                            }
+                        }
+                        // If we have information about this process -and- we've already made it borderless, then reverse the process
+                        if (pd.MadeBorderless)
+                        {
+                            Manipulation.RestoreWindow(pd);
+                        }
+                        // Otherwise, this is a fresh request to remove the border from the current window
+                        else
+                        {
+                             _watcher.RemoveBorder(pd).GetAwaiter().GetResult();
+                        }
+                    }
+
+                    return; // handled the message, do not call base WndProc for this message
+                }
+
+                if (keystroke == MouseHideHotKey && keystrokeModifier == MouseHideHotKeyModifier)
+                {
+                    Manipulation.ToggleMouseCursorVisibility(this);
+
+                    return; // handled the message, do not call base WndProc for this message
+                }
+
+                if (keystroke == MouseLockHotKey && keystrokeModifier == 0)
+                {
+                    var hWnd = Native.GetForegroundWindow();
+
+                    // get size of clientarea
+                    var rect = new Native.Rect();
+                    Native.GetClientRect(hWnd, ref rect);
+
+                    // get top,left point of clientarea
+                    var p = new Native.POINTAPI {X = 0, Y = 0};
+                    Native.ClientToScreen(hWnd, ref p);
+
+                    var clipRect = new Rectangle(p.X, p.Y, rect.Right - rect.Left, rect.Bottom - rect.Top);
+
+                    Cursor.Clip = Cursor.Clip.Equals(clipRect) ? Rectangle.Empty : clipRect;
+
+                    return; // handled the message, do not call base WndProc for this message
+                }
+            }
+
+            base.WndProc(ref m);
+        }
+
+        #endregion
+
+        private void muteInBackgroundToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+            var fav = (Favorite)lstFavorites.SelectedItem;
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+                lstFavorites.Items.Remove(fav);
+            });
+            fav.MuteInBackground = toolStripMuteInBackground.Checked;
+            if (!fav.MuteInBackground)
+            {
+                if (fav.IsRunning && Native.IsMuted(fav.RunningId))
+                {
+                    Native.UnMuteProcess(fav.RunningId);
+                }
+            } else if (fav.MuteInBackground)
+            {
+                if (fav.IsRunning && !Native.IsMuted(fav.RunningId))
+                {
+                    Native.MuteProcess(fav.RunningId);
+                }
+            }
+            RefreshFavoritesList(fav);
+        }
+
+        private void editRegex_Click(object sender, EventArgs e)
+        {
+            var fav = (Favorite) lstFavorites.SelectedItem;
+            if (fav.Type == FavoriteType.Regex)
+            {
+                string newRegex = InputText(LanguageManager.Data("setNewRegexTitle"), LanguageManager.Data("setNewRegexPrompt"), fav.SearchText);
+                fav.SearchText = newRegex;
+                RefreshFavoritesList(fav);
+            }
+        }
+
+        private (int x, int y, int w, int h) InputSize(string sTitle, string xInstruction, string yInstruction, string wInstruction, string hInstruction, bool keepRatio, Favorite fav = null, int xDefaultValue = 0, int yDefaultValue = 0, int wDefaultValue = 0, int hDefaultValue = 0)
+        {
+            Point? windowSize = null;
+            try
+            {
+                keepRatio = keepRatio ? fav is not null : false;
+                if (fav is not null) {
+                    windowSize = fav.GetWindowSize();
+                }
+                using (var inputForm = new InputSizeForm(keepRatio, windowSize))
+                {
+                    inputForm.Title = sTitle;
+                    inputForm.InstructionsX = xInstruction;
+                    inputForm.InstructionsY = yInstruction;
+                    inputForm.InstructionsW = wInstruction;
+                    inputForm.InstructionsH = hInstruction;
+                    inputForm.InputX = xDefaultValue;
+                    inputForm.InputY = yDefaultValue;
+                    inputForm.InputW = wDefaultValue;
+                    inputForm.InputH = hDefaultValue;
+
+                    if (inputForm.ShowDialog() == DialogResult.OK)
+                    {
+                        return inputForm.Output;
+                    }
+
+                    return (xDefaultValue, yDefaultValue, wDefaultValue, hDefaultValue);
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return (0, 0, 0, 0);
+        }
+
+        private void toolStripSetSetWindowSizeKeepRatio_Click(object sender, EventArgs e)
+        {
+            var fav = (Favorite) lstFavorites.SelectedItem;
+
+
+            var result =
+                MessageBox.Show(
+                   LanguageManager.Data("setWindowSizeMousePrompt"),
+                   LanguageManager.Data("setWindowSizeMouseTitle"), MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+            if (result == DialogResult.Cancel)
+            {
+                return;
+            }
+
+            if (result == DialogResult.Yes)
+            {
+                using (var frmSelectArea = new DesktopAreaSelectorForm(true, fav.GetWindowSize()))
+                {
+                    if (frmSelectArea.ShowDialog() != DialogResult.OK)
+                    {
+                        return;
+                    }
+
+                    // Temporarily disable compiler warning CS1690: http://msdn.microsoft.com/en-us/library/x524dkh4.aspx
+                    //
+                    // We know what we're doing: everything is safe here.
+#pragma warning disable 1690
+                    fav.PositionX = frmSelectArea.CurrentTopLeft.X;
+                    fav.PositionY = frmSelectArea.CurrentTopLeft.Y;
+                    fav.PositionWidth = frmSelectArea.CurrentBottomRight.X - frmSelectArea.CurrentTopLeft.X;
+                    fav.PositionHeight = frmSelectArea.CurrentBottomRight.Y - frmSelectArea.CurrentTopLeft.Y;
+#pragma warning restore 1690
+                }
+            }
+            else // System.Windows.Forms.DialogResult.No
+            {
+                var (favPositionX, favPositionY, favPositionW, favPositionH) = InputSize(LanguageManager.Data("setWindowSizeTitle"), string.Format(LanguageManager.Data("setWindowSizePixelPrompt"), "X"), string.Format(LanguageManager.Data("setWindowSizePixelPrompt"), "Y"), LanguageManager.Data("setWindowSizeWidthPrompt"), LanguageManager.Data("setWindowSizeHeightPrompt"), true, fav, fav.PositionX, fav.PositionY, fav.PositionWidth, fav.PositionHeight);
+                fav.PositionX = favPositionX;
+                fav.PositionHeight = favPositionH;
+                fav.PositionWidth = favPositionW;
+                fav.PositionY = favPositionY;
+            }
+
+            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            {
+                lstFavorites.Items.Remove(fav);
+            });
+
+            if (fav.PositionWidth == 0 || fav.PositionHeight == 0)
+            {
+                fav.Size = FavoriteSize.FullScreen;
+            }
+            else
+            {
+                fav.Size = FavoriteSize.SpecificSize;
+                fav.ShouldMaximize = false;
+            }
+            RefreshFavoritesList(fav);
+        }
+    }
+}

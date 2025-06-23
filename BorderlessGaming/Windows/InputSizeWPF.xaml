@@ -1,0 +1,46 @@
+<Window x:Class="BorderlessGaming.Windows.InputSizeWPF"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="clr-namespace:BorderlessGaming.Windows"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:viewModel="clr-namespace:BorderlessGaming.Windows.ViewModels"
+        xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+        Title="{Binding Title}"
+        Width="479"
+        Height="148"
+        d:DataContext="{d:DesignInstance viewModel:InputSizeViewModel}"
+        mc:Ignorable="d">
+  <Grid>
+    <StackPanel Margin="5,5,5,5" Orientation="Vertical">
+      <StackPanel Orientation="Horizontal">
+        <Label>
+          <TextBlock Text="{Binding PositionXLabel}" />
+        </Label>
+        <xctk:IntegerUpDown ValueChanged="PositionXSpinner_OnValueChanged" Value="{Binding PositionX}" />
+        <Label>
+          <TextBlock Text="{Binding SizeWLabel}" />
+        </Label>
+        <xctk:IntegerUpDown ValueChanged="SizeWSpinner_OnValueChanged" Value="{Binding SizeW}" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal">
+        <Label>
+          <TextBlock Text="{Binding PositionYLabel}" />
+        </Label>
+        <xctk:IntegerUpDown ValueChanged="PositionYSpinner_OnValueChanged" Value="{Binding PositionY}" />
+        <Label>
+          <TextBlock Text="{Binding SizeHLabel}" />
+        </Label>
+        <xctk:IntegerUpDown ValueChanged="SizeHSpinner_OnValueChanged" Value="{Binding SizeH}" />
+      </StackPanel>
+      <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+        <Button Command="{Binding OKButtonClicked}">
+          <TextBlock Text="{Binding OKButtonLabel}" />
+        </Button>
+        <Button Command="{Binding CancelButtonClicked}">
+          <TextBlock Text="{Binding CancelButtonLabel}" />
+        </Button>
+      </StackPanel>
+    </StackPanel>
+  </Grid>
+</Window>

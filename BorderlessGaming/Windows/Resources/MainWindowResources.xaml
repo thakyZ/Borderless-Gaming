@@ -1,0 +1,172 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DrawingGroup x:Key="ChevronRight">
+    <GeometryDrawing>
+      <GeometryDrawing.Geometry>
+        <GeometryGroup>
+          <PathGeometry>
+            <PathFigure IsClosed="True"
+                        IsFilled="True"
+                        StartPoint="0,0">
+              <LineSegment Point="0,24" />
+              <LineSegment Point="24,12" />
+              <LineSegment Point="0,0" />
+            </PathFigure>
+          </PathGeometry>
+        </GeometryGroup>
+      </GeometryDrawing.Geometry>
+      <GeometryDrawing.Brush>
+        <SolidColorBrush Color="Black" />
+      </GeometryDrawing.Brush>
+    </GeometryDrawing>
+  </DrawingGroup>
+  <DrawingGroup x:Key="ChevronLeft">
+    <GeometryDrawing>
+      <GeometryDrawing.Geometry>
+        <GeometryGroup>
+          <PathGeometry>
+            <PathFigure IsClosed="True"
+                        IsFilled="True"
+                        StartPoint="24,0">
+              <LineSegment Point="24,24" />
+              <LineSegment Point="0,12" />
+              <LineSegment Point="24,0" />
+            </PathFigure>
+          </PathGeometry>
+        </GeometryGroup>
+      </GeometryDrawing.Geometry>
+      <GeometryDrawing.Brush>
+        <SolidColorBrush Color="Black" />
+      </GeometryDrawing.Brush>
+    </GeometryDrawing>
+  </DrawingGroup>
+  <DrawingGroup x:Key="BoxExpand">
+    <GeometryDrawing>
+      <GeometryDrawing.Geometry>
+        <GeometryGroup>
+          <PathGeometry>
+            <PathFigure IsClosed="True"
+                        IsFilled="False"
+                        StartPoint="2,2">
+              <LineSegment Point="2,22" />
+              <LineSegment Point="22,22" />
+              <LineSegment Point="22,2" />
+            </PathFigure>
+          </PathGeometry>
+        </GeometryGroup>
+      </GeometryDrawing.Geometry>
+      <GeometryDrawing.Pen>
+        <Pen Brush="Gray" Thickness="1" />
+      </GeometryDrawing.Pen>
+    </GeometryDrawing>
+    <GeometryDrawing>
+      <GeometryDrawing.Geometry>
+        <GeometryGroup>
+          <PathGeometry>
+            <PathFigure IsClosed="True"
+                        IsFilled="True"
+                        StartPoint="8,5">
+              <LineSegment Point="8,3" />
+              <LineSegment Point="12,0" />
+              <LineSegment Point="16,3" />
+              <LineSegment Point="16,5" />
+            </PathFigure>
+            <PathFigure IsClosed="True"
+                        IsFilled="True"
+                        StartPoint="3,16">
+              <LineSegment Point="0,12" />
+              <LineSegment Point="3,8" />
+              <LineSegment Point="5,8" />
+              <LineSegment Point="5,16" />
+            </PathFigure>
+            <PathFigure IsClosed="True"
+                        IsFilled="True"
+                        StartPoint="19,16">
+              <LineSegment Point="19,8" />
+              <LineSegment Point="21,8" />
+              <LineSegment Point="24,12" />
+              <LineSegment Point="21,16" />
+            </PathFigure>
+            <PathFigure IsClosed="True"
+                        IsFilled="True"
+                        StartPoint="8,21">
+              <LineSegment Point="8,19" />
+              <LineSegment Point="16,19" />
+              <LineSegment Point="16,21" />
+              <LineSegment Point="12,24" />
+            </PathFigure>
+          </PathGeometry>
+        </GeometryGroup>
+      </GeometryDrawing.Geometry>
+      <GeometryDrawing.Brush>
+        <SolidColorBrush Color="Black" />
+      </GeometryDrawing.Brush>
+    </GeometryDrawing>
+  </DrawingGroup>
+  <DrawingGroup x:Key="BoxContract">
+    <GeometryDrawing>
+      <GeometryDrawing.Geometry>
+        <GeometryGroup>
+          <PathGeometry>
+            <PathFigure IsClosed="True"
+                        IsFilled="False"
+                        StartPoint="2,2">
+              <LineSegment Point="2,22" />
+              <LineSegment Point="22,22" />
+              <LineSegment Point="22,2" />
+            </PathFigure>
+          </PathGeometry>
+        </GeometryGroup>
+      </GeometryDrawing.Geometry>
+      <GeometryDrawing.Pen>
+        <Pen Brush="Gray" Thickness="1" />
+      </GeometryDrawing.Pen>
+    </GeometryDrawing>
+    <GeometryDrawing>
+      <GeometryDrawing.Geometry>
+        <GeometryGroup>
+          <PathGeometry>
+            <PathFigure IsClosed="True"
+                        IsFilled="True"
+                        StartPoint="8,0">
+              <LineSegment Point="8,2" />
+              <LineSegment Point="12,5" />
+              <LineSegment Point="16,2" />
+              <LineSegment Point="16,0" />
+            </PathFigure>
+            <PathFigure IsClosed="True"
+                        IsFilled="True"
+                        StartPoint="2,16">
+              <LineSegment Point="5,12" />
+              <LineSegment Point="2,8" />
+              <LineSegment Point="0,8" />
+              <LineSegment Point="0,16" />
+            </PathFigure>
+            <PathFigure IsClosed="True"
+                        IsFilled="True"
+                        StartPoint="24,16">
+              <LineSegment Point="24,8" />
+              <LineSegment Point="22,8" />
+              <LineSegment Point="19,12" />
+              <LineSegment Point="22,16" />
+            </PathFigure>
+            <PathFigure IsClosed="True"
+                        IsFilled="True"
+                        StartPoint="8,22">
+              <LineSegment Point="8,24" />
+              <LineSegment Point="16,24" />
+              <LineSegment Point="16,22" />
+              <LineSegment Point="12,19" />
+            </PathFigure>
+          </PathGeometry>
+        </GeometryGroup>
+      </GeometryDrawing.Geometry>
+      <GeometryDrawing.Brush>
+        <SolidColorBrush Color="Black" />
+      </GeometryDrawing.Brush>
+    </GeometryDrawing>
+  </DrawingGroup>
+  <DrawingImage x:Key="FavoiteButtonIcon" Drawing="{StaticResource ChevronRight}" />
+  <DrawingImage x:Key="UnfavoiteButtonIcon" Drawing="{StaticResource ChevronLeft}" />
+  <DrawingImage x:Key="MakeBordelessButtonIcon" Drawing="{StaticResource BoxExpand}" />
+  <DrawingImage x:Key="RestoreWindowButtonIcon" Drawing="{StaticResource BoxContract}" />
+</ResourceDictionary>
