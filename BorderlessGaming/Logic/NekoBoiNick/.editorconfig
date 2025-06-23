@@ -6,6 +6,8 @@ indent_size = 4
 end_of_line = crlf
 insert_final_newline = false
 charset = utf-8
+guidelines = 128
+guidelines_style = 1px dashed 40ffffff
 
 vsspell_section_id = 302403cf9c32415fbd46d97acf0f92b4
 vsspell_ignored_words_302403cf9c32415fbd46d97acf0f92b4 = Hotkey
