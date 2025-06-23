@@ -582,6 +582,432 @@ namespace BorderlessGaming.Logic.Windows
             }
         }
 
+#nullable enable
+        public static void ToggleMouseCursorVisibility(System.Windows.Window windowMain,
+            Boolstate forced = Boolstate.Indeterminate)
+        {
+            if (forced == Boolstate.True && !MouseCursorIsHidden ||
+                forced == Boolstate.False && MouseCursorIsHidden)
+            {
+                return;
+            }
+
+            if (forced == Boolstate.True || MouseCursorIsHidden)
+            {
+                Native.SetSystemCursor(hCursorOriginal, OCR_SYSTEM_CURSORS.OCR_NORMAL);
+                Native.DestroyIcon(hCursorOriginal);
+                hCursorOriginal = IntPtr.Zero;
+
+                MouseCursorIsHidden = false;
+            }
+            else
+            {
+                string? fileName = null;
+
+                try
+                {
+                    hCursorOriginal = windowMain.Cursor.CopyHandle();
+
+                    if (curInvisibleCursor == null)
+                    {
+                        // Can't load from a memory stream because the constructor new Cursor() does not accept animated or non-monochrome cursors
+                        fileName = Path.GetTempPath() + Guid.NewGuid() + ".cur";
+
+                        using (var fileStream = File.Open(fileName, FileMode.Create))
+                        {
+                            using (var ms = new MemoryStream(Resources.blank))
+                            {
+                                ms.WriteTo(fileStream);
+                            }
+
+                            fileStream.Flush();
+                            fileStream.Close();
+                        }
+
+                        curInvisibleCursor = new Cursor(Native.LoadCursorFromFile(fileName));
+                    }
+
+                    Native.SetSystemCursor(curInvisibleCursor.CopyHandle(), OCR_SYSTEM_CURSORS.OCR_NORMAL);
+
+                    MouseCursorIsHidden = true;
+                }
+                catch
+                {
+                    // swallow exception and assume cursor set failed
+                }
+                finally
+                {
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(fileName))
+                        {
+                            if (File.Exists(fileName))
+                            {
+                                File.Delete(fileName);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+        }
+        /// <summary>
+        ///     remove the menu, resize the window, remove border, and maximize
+        /// </summary>
+        public static async Task MakeWindowBorderless(ProcessDetails processDetails, System.Windows.Window windowMain, IntPtr targetWindow,
+            Rectangle targetFrame, Favorite favDetails)
+        {
+            if (NeedsDelay(targetWindow))
+            {
+                await MakeWindowBorderlessDelayed(processDetails, windowMain, targetWindow, targetFrame, favDetails);
+            }
+            else
+            {
+                // Automatically match a window to favorite details, if that information is available.
+                // Note: if one is not available, the default settings will be used as a new Favorite() object.
+
+                // Automatically match this window to a process
+
+                // Failsafe to prevent rapid switching, but also allow a few changes to the window handle (to be persistent)
+                if (processDetails != null)
+                {
+                    if (processDetails.MadeBorderless)
+                    {
+                        if (processDetails.MadeBorderlessAttempts > 3 || ! await processDetails.WindowHasTargetableStyles())
+                        {
+                            return;
+                        }
+                    }
+                }
+
+                // If no target frame was specified, assume the entire space on the primary screen
+                if (targetFrame.Width == 0 || targetFrame.Height == 0)
+                {
+                    targetFrame = Screen.FromHandle(targetWindow).Bounds;
+                }
+
+                // Get window styles
+                var styleCurrentWindowStandard = Native.GetWindowLong(targetWindow, WindowLongIndex.Style);
+                var styleCurrentWindowExtended = Native.GetWindowLong(targetWindow, WindowLongIndex.ExtendedStyle);
+
+                // Compute new styles (XOR of the inverse of all the bits to filter)
+                var styleNewWindowStandard =
+                    styleCurrentWindowStandard
+                    & ~(
+                        WindowStyleFlags.Caption // composite of Border and DialogFrame
+                        //   | WindowStyleFlags.Border
+                        //   | WindowStyleFlags.DialogFrame                  
+                        | WindowStyleFlags.ThickFrame
+                        | WindowStyleFlags.SystemMenu
+                        | WindowStyleFlags.MaximizeBox // same as TabStop
+                        | WindowStyleFlags.MinimizeBox // same as Group
+                    );
+
+                var styleNewWindowExtended =
+                    styleCurrentWindowExtended
+                    & ~(
+                        WindowStyleFlags.ExtendedDlgModalFrame
+                        | WindowStyleFlags.ExtendedComposited
+                        | WindowStyleFlags.ExtendedWindowEdge
+                        | WindowStyleFlags.ExtendedClientEdge
+                        | WindowStyleFlags.ExtendedLayered
+                        | WindowStyleFlags.ExtendedStaticEdge
+                        | WindowStyleFlags.ExtendedToolWindow
+                        | WindowStyleFlags.ExtendedAppWindow
+                    );
+
+                // Should have process details by now
+                if (processDetails != null)
+                {
+                    // Save original details on this window so that we have a chance at undoing the process
+                    processDetails.OriginalStyleFlagsStandard = styleCurrentWindowStandard;
+                    processDetails.OriginalStyleFlagsExtended = styleCurrentWindowExtended;
+                    Native.Rect rectTemp;
+                    Native.GetWindowRect(processDetails.WindowHandle, out rectTemp);
+                    processDetails.OriginalLocation = new Rectangle(rectTemp.Left, rectTemp.Top,
+                        rectTemp.Right - rectTemp.Left, rectTemp.Bottom - rectTemp.Top);
+                }
+
+                // remove the menu and menuitems and force a redraw
+                if (favDetails.RemoveMenus)
+                {
+                    // unfortunately, menus can't be re-added easily so they aren't removed by default anymore
+                    var menuHandle = Native.GetMenu(targetWindow);
+                    if (menuHandle != IntPtr.Zero)
+                    {
+                        var menuItemCount = Native.GetMenuItemCount(menuHandle);
+
+                        for (var i = 0; i < menuItemCount; i++)
+                        {
+                            Native.RemoveMenu(menuHandle, 0, MenuFlags.ByPosition | MenuFlags.Remove);
+                        }
+
+                        Native.DrawMenuBar(targetWindow);
+                    }
+                }
+
+                // auto-hide the Windows taskbar (do this before resizing the window)
+                if (favDetails.HideWindowsTaskbar)
+                {
+                    Native.ShowWindow(windowMain.Handle, WindowShowStyle.ShowNoActivate);
+                    if (windowMain.WindowState == System.Windows.WindowState.Minimized)
+                    {
+                        windowMain.WindowState = System.Windows.WindowState.Normal;
+                    }
+
+                    ToggleWindowsTaskbarVisibility(Boolstate.False);
+                }
+
+                // auto-hide the mouse cursor
+                if (favDetails.HideMouseCursor)
+                {
+                    ToggleMouseCursorVisibility(windowMain, Boolstate.False);
+                }
+
+                // update window styles
+                Native.SetWindowLong(targetWindow, WindowLongIndex.Style, styleNewWindowStandard);
+                Native.SetWindowLong(targetWindow, WindowLongIndex.ExtendedStyle, styleNewWindowExtended);
+
+                // update window position
+                if (favDetails.Size != FavoriteSize.NoChange)
+                {
+                    if (favDetails.Size == FavoriteSize.FullScreen || favDetails.PositionWidth == 0 ||
+                        favDetails.PositionHeight == 0)
+                    {
+                        // Set the window size to the biggest possible, using bounding adjustments
+                        Native.SetWindowPos
+                        (
+                            targetWindow,
+                            0,
+                            targetFrame.X + favDetails.OffsetLeft,
+                            targetFrame.Y + favDetails.OffsetTop,
+                            targetFrame.Width - favDetails.OffsetLeft + favDetails.OffsetRight,
+                            targetFrame.Height - favDetails.OffsetTop + favDetails.OffsetBottom,
+                            SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoOwnerZOrder |
+                            SetWindowPosFlags.NoSendChanging
+                        );
+
+                        // And auto-maximize
+                        if (favDetails.ShouldMaximize)
+                        {
+                            Native.ShowWindow(targetWindow, WindowShowStyle.Maximize);
+                        }
+                    }
+                    else
+                    {
+                        // Set the window size to the exact position specified by the user
+                        Native.SetWindowPos
+                        (
+                            targetWindow,
+                            0,
+                            favDetails.PositionX,
+                            favDetails.PositionY,
+                            favDetails.PositionWidth,
+                            favDetails.PositionHeight,
+                            SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoOwnerZOrder |
+                            SetWindowPosFlags.NoSendChanging
+                        );
+                    }
+                }
+
+                // Set topmost
+                if (favDetails.TopMost)
+                {
+                    Native.SetWindowPos
+                    (
+                        targetWindow,
+                        Native.HWND_TOPMOST,
+                        0,
+                        0,
+                        0,
+                        0,
+                        SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoMove | SetWindowPosFlags.NoSize |
+                        SetWindowPosFlags.NoSendChanging
+                    );
+                }
+            }
+
+            // Make a note that we attempted to make the window borderless
+            if (processDetails != null)
+            {
+                processDetails.MadeBorderless = true;
+                processDetails.MadeBorderlessAttempts++;
+            }
+            if (SteamApi.IsLoaded)
+            {
+                if (SteamApi.UnlockAchievement("FIRST_TIME_BORDERLESS"))
+                {
+                    Console.WriteLine("Great!");
+                }
+            }
+        }
+
+        private static async Task MakeWindowBorderlessDelayed(ProcessDetails processDetails, System.Windows.Window windowMain,
+            IntPtr targetWindow, Rectangle targetFrame, Favorite favDetails)
+        {
+            // Automatically match a window to favorite details, if that information is available.
+            // Note: if one is not available, the default settings will be used as a new Favorite() object.
+
+            // Automatically match this window to a process
+
+            // Failsafe to prevent rapid switching, but also allow a few changes to the window handle (to be persistent)
+            if (processDetails != null)
+            {
+                if (processDetails.MadeBorderless)
+                {
+                    if (processDetails.MadeBorderlessAttempts > 3 || ! await processDetails.WindowHasTargetableStyles())
+                    {
+                        return;
+                    }
+                }
+            }
+
+            // If no target frame was specified, assume the entire space on the primary screen
+            if (targetFrame.Width == 0 || targetFrame.Height == 0)
+            {
+                targetFrame = Screen.FromHandle(targetWindow).Bounds;
+            }
+
+            // Get window styles
+            var styleCurrentWindowStandard = Native.GetWindowLong(targetWindow, WindowLongIndex.Style);
+            var styleCurrentWindowExtended = Native.GetWindowLong(targetWindow, WindowLongIndex.ExtendedStyle);
+
+            // Compute new styles (XOR of the inverse of all the bits to filter)
+            var styleNewWindowStandard =
+                styleCurrentWindowStandard
+                & ~(
+                    WindowStyleFlags.Caption // composite of Border and DialogFrame
+                    // | WindowStyleFlags.Border
+                    //| WindowStyleFlags.DialogFrame                  
+                    | WindowStyleFlags.ThickFrame
+                    | WindowStyleFlags.OverlappedWindow
+                    | WindowStyleFlags.SystemMenu
+                    | WindowStyleFlags.MaximizeBox // same as TabStop
+                    | WindowStyleFlags.MinimizeBox // same as Group
+                );
+
+            var styleNewWindowExtended =
+                styleCurrentWindowExtended
+                & ~(
+                    WindowStyleFlags.ExtendedDlgModalFrame
+                    | WindowStyleFlags.ExtendedComposited
+                    | WindowStyleFlags.ExtendedWindowEdge
+                    | WindowStyleFlags.ExtendedClientEdge
+                    | WindowStyleFlags.ExtendedLayered
+                    | WindowStyleFlags.ExtendedStaticEdge
+                    | WindowStyleFlags.ExtendedToolWindow
+                    | WindowStyleFlags.ExtendedAppWindow
+                );
+
+            // Should have process details by now
+            if (processDetails != null)
+            {
+                // Save original details on this window so that we have a chance at undoing the process
+                processDetails.OriginalStyleFlagsStandard = styleCurrentWindowStandard;
+                processDetails.OriginalStyleFlagsExtended = styleCurrentWindowExtended;
+                Native.GetWindowRect(processDetails.WindowHandle, out Native.Rect rect_temp);
+                processDetails.OriginalLocation = new Rectangle(rect_temp.Left, rect_temp.Top,
+                    rect_temp.Right - rect_temp.Left, rect_temp.Bottom - rect_temp.Top);
+            }
+
+            // remove the menu and menuitems and force a redraw
+
+            // unfortunately, menus can't be re-added easily so they aren't removed by default anymore
+            var menuHandle = Native.GetMenu(targetWindow);
+            if (menuHandle != IntPtr.Zero)
+            {
+                var menuItemCount = Native.GetMenuItemCount(menuHandle);
+
+                for (var i = 0; i < menuItemCount; i++)
+                {
+                    Native.RemoveMenu(menuHandle, 0, MenuFlags.ByPosition | MenuFlags.Remove);
+                }
+
+                Native.DrawMenuBar(targetWindow);
+            }
+
+
+            // auto-hide the Windows taskbar (do this before resizing the window)
+            if (favDetails.HideWindowsTaskbar)
+            {
+                Native.ShowWindow(windowMain.Handle, WindowShowStyle.ShowNoActivate);
+                if (windowMain.WindowState == System.Windows.WindowState.Minimized)
+                {
+                    windowMain.WindowState = System.Windows.WindowState.Normal;
+                }
+
+                ToggleWindowsTaskbarVisibility(Boolstate.False);
+            }
+
+            // auto-hide the mouse cursor
+            if (favDetails.HideMouseCursor)
+            {
+                ToggleMouseCursorVisibility(windowMain, Boolstate.False);
+            }
+
+
+            // update window position
+            if (favDetails.Size != FavoriteSize.NoChange)
+            {
+                if (favDetails.Size == FavoriteSize.FullScreen || favDetails.PositionWidth == 0 ||
+                    favDetails.PositionHeight == 0)
+                {
+                    // Set the window size to the biggest possible, using bounding adjustments
+                    Native.SetWindowPos
+                    (
+                        targetWindow,
+                        0,
+                        targetFrame.X + favDetails.OffsetLeft,
+                        targetFrame.Y + favDetails.OffsetTop,
+                        targetFrame.Width - favDetails.OffsetLeft + favDetails.OffsetRight,
+                        targetFrame.Height - favDetails.OffsetTop + favDetails.OffsetBottom,
+                        SetWindowPosFlags.FrameChanged | SetWindowPosFlags.ShowWindow |
+                        SetWindowPosFlags.NoOwnerZOrder | SetWindowPosFlags.NoSendChanging
+                    );
+                }
+                else
+                {
+                    // Set the window size to the exact position specified by the user
+                    Native.SetWindowPos
+                    (
+                        targetWindow,
+                        0,
+                        favDetails.PositionX,
+                        favDetails.PositionY,
+                        favDetails.PositionWidth,
+                        favDetails.PositionHeight,
+                        SetWindowPosFlags.FrameChanged | SetWindowPosFlags.ShowWindow |
+                        SetWindowPosFlags.NoOwnerZOrder | SetWindowPosFlags.NoSendChanging
+                    );
+                }
+            }
+
+            // Set topmost
+            if (favDetails.TopMost)
+            {
+                Native.SetWindowPos
+                (
+                    targetWindow,
+                    Native.HWND_TOPMOST,
+                    0,
+                    0,
+                    0,
+                    0,
+                    SetWindowPosFlags.FrameChanged | SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoMove |
+                    SetWindowPosFlags.NoSize | SetWindowPosFlags.NoSendChanging
+                );
+            }
+            //wait before applying styles
+            await TaskUtilities.WaitAndStartTaskAsync(() =>
+            {
+                Native.SetWindowLong(targetWindow, WindowLongIndex.Style, styleNewWindowStandard);
+                Native.SetWindowLong(targetWindow, WindowLongIndex.ExtendedStyle, styleNewWindowExtended);
+            }, 4);
+        }
+        #nullable restore
+
         private static void RedrawWindowsSystemTrayArea()
         {
             try
