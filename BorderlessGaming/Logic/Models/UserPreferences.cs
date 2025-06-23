@@ -6,10 +6,8 @@ using BorderlessGaming.Logic.Misc;
 using CommandLine;
 using BorderlessGaming.Logic.Misc.Utilities;
 
-
 namespace BorderlessGaming.Logic.Models
 {
-
     public partial class UserPreferences
     {
         private static readonly Lazy<UserPreferences> lazy = new(Load);
