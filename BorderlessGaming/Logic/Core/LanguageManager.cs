@@ -135,6 +135,35 @@ namespace BorderlessGaming.Logic.Core
             }
         }
 
+        #nullable enable
+        public static void Setup(List<System.Windows.Controls.MenuItem> toolStripLanguages, System.Windows.Input.ICommand commandBinding)
+        {
+
+            foreach (var lang in Languages.Values)
+            {
+                toolStripLanguages.Add(new System.Windows.Controls.MenuItem
+                {
+                    Header = lang.ToString(),
+                    IsCheckable = true,
+                    IsChecked = IsDefault(lang.DisplayName),
+                    Command = commandBinding,
+                    CommandParameter = lang.ToString()
+                });
+            }
+        }
+
+        internal static bool LanguageSelected(List<System.Windows.Controls.MenuItem> dropDownItems)
+        {
+            var anyChecked = false;
+            foreach (System.Windows.Controls.MenuItem dropItem in dropDownItems)
+            {
+                anyChecked = dropItem.IsChecked;
+            }
+            return anyChecked;
+        }
+
+        #nullable restore
+
         private static bool LanguageSelected(ToolStripItemCollection dropDownItems)
         {
             var anyChecked = false;
@@ -145,7 +174,7 @@ namespace BorderlessGaming.Logic.Core
             return anyChecked;
         }
 
-        private static bool IsDefault(string displayName)
+        internal static bool IsDefault(string displayName)
         {
             try
             {
@@ -160,7 +189,7 @@ namespace BorderlessGaming.Logic.Core
             }
         }
 
-        private static void SetDefaultLanguage(string tsiText)
+        internal static void SetDefaultLanguage(string tsiText)
         {
             var langauge = Languages.Values.FirstOrDefault(lang => lang.DisplayName.Equals(tsiText));
             if (langauge != null)
