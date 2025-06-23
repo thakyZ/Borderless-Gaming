@@ -48,7 +48,7 @@ namespace BorderlessGaming.Logic.Misc.Utilities
                         StackTrace = exception.StackTrace,
                         Type = exception.GetType().Name
                     }.Encode());
-                    MessageBox.Show($"An Unhandled Exception was Caught and Logged to:\r\n{filePath}", "Exception Caught", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"An Unhandled Exception was Caught and Logged to:{Environment.NewLine}{Environment.NewLine}{filePath}", "Exception Caught", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 catch
                 {
@@ -79,7 +79,7 @@ namespace BorderlessGaming.Logic.Misc.Utilities
                         Type = exception.GetType().Name
                     }.Encode());
                     MessageBox.Show(
-                        $"An Unhandled Thread Exception was Caught and Logged to:\r\n{filePath}",
+                        $"An Unhandled Thread Exception was Caught and Logged to:{Environment.NewLine}{Environment.NewLine}{filePath}",
                         "Thread Exception Caught", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 catch
