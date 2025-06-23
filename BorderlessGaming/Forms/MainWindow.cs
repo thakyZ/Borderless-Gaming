@@ -37,8 +37,8 @@ namespace BorderlessGaming.Forms
 
         private void toolStripCheckForUpdates_CheckedChanged(object sender, EventArgs e)
         {
-            SettingsWrapper.Instance.Settings.CheckForUpdates = toolStripCheckForUpdates.Checked;
-            SettingsWrapper.Save();
+            UserPreferences.Instance.Settings.CheckForUpdates = toolStripCheckForUpdates.Checked;
+            UserPreferences.Instance.Save();
         }
 
         #region Local data
@@ -80,66 +80,66 @@ namespace BorderlessGaming.Forms
         private void toolStripRunOnStartup_CheckChanged(object sender, EventArgs e)
         {
             AutoStart.Setup(toolStripRunOnStartup.Checked, "--silent --minimize");
-            SettingsWrapper.Instance.Settings.RunOnStartup = toolStripRunOnStartup.Checked;
-            SettingsWrapper.Save();
+            UserPreferences.Instance.Settings.RunOnStartup = toolStripRunOnStartup.Checked;
+            UserPreferences.Instance.Save();
         }
 
         private void toolStripGlobalHotkey_CheckChanged(object sender, EventArgs e)
         {
-            SettingsWrapper.Instance.Settings.UseGlobalHotkey = toolStripGlobalHotkey.Checked;
-            SettingsWrapper.Save();
+            UserPreferences.Instance.Settings.UseGlobalHotkey = toolStripGlobalHotkey.Checked;
+            UserPreferences.Instance.Save();
             RegisterHotkeys();
         }
 
         private void toolStripMouseLock_CheckChanged(object sender, EventArgs e)
         {
-            SettingsWrapper.Instance.Settings.UseMouseLockHotKey = toolStripMouseLock.Checked;
-            SettingsWrapper.Save();
+            UserPreferences.Instance.Settings.UseMouseLockHotKey = toolStripMouseLock.Checked;
+            UserPreferences.Instance.Save();
             RegisterHotkeys();
         }
 
         private void useMouseHideHotkeyWinScrollLockToolStripMenuItem_CheckChanged(object sender, EventArgs e)
         {
-            SettingsWrapper.Instance.Settings.UseMouseHideHotKey = toolStripMouseHide.Checked;
-            SettingsWrapper.Save();
+            UserPreferences.Instance.Settings.UseMouseHideHotKey = toolStripMouseHide.Checked;
+            UserPreferences.Instance.Save();
             RegisterHotkeys();
         }
 
         private void startMinimizedToTrayToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
-            SettingsWrapper.Instance.Settings.StartMinimized = toolStripMinimizedToTray.Checked;
-            SettingsWrapper.Save();
+            UserPreferences.Instance.Settings.StartMinimized = toolStripMinimizedToTray.Checked;
+            UserPreferences.Instance.Save();
         }
 
         private void hideBalloonTipsToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
-            SettingsWrapper.Instance.Settings.HideBalloonTips = toolStripHideBalloonTips.Checked;
-            SettingsWrapper.Save();
+            UserPreferences.Instance.Settings.HideBalloonTips = toolStripHideBalloonTips.Checked;
+            UserPreferences.Instance.Save();
         }
 
         private void closeToTrayToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
-            SettingsWrapper.Instance.Settings.CloseToTray = toolStripCloseToTray.Checked;
-            SettingsWrapper.Save();
+            UserPreferences.Instance.Settings.CloseToTray = toolStripCloseToTray.Checked;
+            UserPreferences.Instance.Save();
         }
 
         private void useSlowerWindowDetectionToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            SettingsWrapper.Instance.Settings.SlowWindowDetection = toolStripSlowWindowDetection.Checked;
-            SettingsWrapper.Save();
+            UserPreferences.Instance.Settings.SlowWindowDetection = toolStripSlowWindowDetection.Checked;
+            UserPreferences.Instance.Save();
         }
 
         private async void viewFullProcessDetailsToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
 
         {
-            SettingsWrapper.Instance.Settings.ViewAllProcessDetails = toolStripViewFullProcessDetails.Checked;
-            SettingsWrapper.Save();
+            UserPreferences.Instance.Settings.ViewAllProcessDetails = toolStripViewFullProcessDetails.Checked;
+            UserPreferences.Instance.Save();
             await RefreshProcesses();
         }
 
         private async void resetHiddenProcessesToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            SettingsWrapper.Instance.ResetHiddenProcesses();
+           UserPreferences.Instance.ResetHiddenProcesses();
             await RefreshProcesses();
         }
 
@@ -291,7 +291,7 @@ namespace BorderlessGaming.Forms
                 return;
             }
 
-            SettingsWrapper.Instance.ExcludeProcess(pd.BinaryName.Trim().ToLower());
+            UserPreferences.Instance.ExcludeProcess(pd.BinaryName.Trim().ToLower());
             await RefreshProcesses();
         }
 
@@ -354,7 +354,7 @@ namespace BorderlessGaming.Forms
                 SearchText = pd.WindowTitle,
                 Screen = ProcessRectangle.Empty
             };
-            SettingsWrapper.Instance.AddFavorite(favorite, () =>
+            UserPreferences.Instance.AddFavorite(favorite, () =>
             {
                 lstFavorites.Items.Add(favorite);
             });
@@ -383,7 +383,7 @@ namespace BorderlessGaming.Forms
               SearchText = pd.BinaryName,
               Screen = ProcessRectangle.Empty
           };
-            SettingsWrapper.Instance.AddFavorite(favorite, () =>
+            UserPreferences.Instance.AddFavorite(favorite, () =>
             {
                 lstFavorites.Items.Add(favorite);
             });
@@ -415,7 +415,7 @@ namespace BorderlessGaming.Forms
                     SearchText = res,
                     Screen = ProcessRectangle.Empty
                 };
-                SettingsWrapper.Instance.AddFavorite(favorite, () =>
+                UserPreferences.Instance.AddFavorite(favorite, () =>
                 {
                     lstFavorites.Items.Add(favorite);
                 });
@@ -474,7 +474,7 @@ namespace BorderlessGaming.Forms
         {
             //refreshing is done through observables so this method just readds the favorite
             //to make it look like it updated and because i dont want to change all that code
-            SettingsWrapper.Instance.AddFavorite(fav, () =>
+            UserPreferences.Instance.AddFavorite(fav, () =>
             {
                 lstFavorites.Items.Add(fav);
             });
@@ -490,7 +490,7 @@ namespace BorderlessGaming.Forms
                 return;
             }
             var fav = (Favorite) lstFavorites.SelectedItem;
-            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            UserPreferences.Instance.RemoveFavorite(fav, () =>
             {
               lstFavorites.Items.Remove(fav);
             });
@@ -505,7 +505,7 @@ namespace BorderlessGaming.Forms
 
             var fav = (Favorite) lstFavorites.SelectedItem;
 
-            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            UserPreferences.Instance.RemoveFavorite(fav, () =>
             {
                 lstFavorites.Items.Remove(fav);
             });
@@ -521,7 +521,7 @@ namespace BorderlessGaming.Forms
             }
 
             var fav = (Favorite) lstFavorites.SelectedItem;
-            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            UserPreferences.Instance.RemoveFavorite(fav, () =>
             {
                 lstFavorites.Items.Remove(fav);
             });
@@ -533,7 +533,7 @@ namespace BorderlessGaming.Forms
         {
             var fav = (Favorite) lstFavorites.SelectedItem;
 
-            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            UserPreferences.Instance.RemoveFavorite(fav, () =>
             {
                 lstFavorites.Items.Remove(fav);
             });
@@ -566,7 +566,7 @@ out int favOffsetL);
         {
             var fav = (Favorite) lstFavorites.SelectedItem;
 
-            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            UserPreferences.Instance.RemoveFavorite(fav, () =>
             {
                 lstFavorites.Items.Remove(fav);
             });
@@ -588,7 +588,7 @@ out int favOffsetL);
         private void hideMouseCursorToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var fav = (Favorite) lstFavorites.SelectedItem;
-            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            UserPreferences.Instance.RemoveFavorite(fav, () =>
             {
                 lstFavorites.Items.Remove(fav);
             });
@@ -599,7 +599,7 @@ out int favOffsetL);
         private void hideWindowsTaskbarToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var fav = (Favorite) lstFavorites.SelectedItem;
-            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            UserPreferences.Instance.RemoveFavorite(fav, () =>
             {
                 lstFavorites.Items.Remove(fav);
             });
@@ -663,7 +663,7 @@ fav.PositionX.ToString()), out int favPositionX);
                 fav.PositionY = favPositionY;
             }
 
-            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            UserPreferences.Instance.RemoveFavorite(fav, () =>
             {
                 lstFavorites.Items.Remove(fav);
             });
@@ -684,7 +684,7 @@ fav.PositionX.ToString()), out int favPositionX);
         {
             var fav = (Favorite) lstFavorites.SelectedItem;
 
-            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            UserPreferences.Instance.RemoveFavorite(fav, () =>
             {
                 lstFavorites.Items.Remove(fav);
             });
@@ -712,7 +712,7 @@ fav.PositionX.ToString()), out int favPositionX);
         {
             var fav = (Favorite) lstFavorites.SelectedItem;
 
-            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            UserPreferences.Instance.RemoveFavorite(fav, () =>
             {
                 lstFavorites.Items.Remove(fav);
             });
@@ -739,7 +739,7 @@ fav.PositionX.ToString()), out int favPositionX);
         {
             var fav = (Favorite) lstFavorites.SelectedItem;
 
-            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            UserPreferences.Instance.RemoveFavorite(fav, () =>
             {
                 lstFavorites.Items.Remove(fav);
             });
@@ -809,7 +809,7 @@ fav.PositionX.ToString()), out int favPositionX);
                     {
                         var tt = (ToolStripMenuItem)s;
                         fav.Screen = tt.Checked ? ProcessRectangle.ToProcessRectangle(screen.Bounds) : new ProcessRectangle();
-                        SettingsWrapper.Save();
+                        UserPreferences.Instance.Save();
                     };
                 }
                 // add supersize Option
@@ -822,7 +822,7 @@ fav.PositionX.ToString()), out int favPositionX);
                 contextFavScreen.DropDownItems[superIndex].Click += (s, ea) =>
                 {
                     fav.Screen = ProcessRectangle.ToProcessRectangle(superSize);
-                    SettingsWrapper.Save();
+                    UserPreferences.Instance.Save();
                 };
             }
         }
@@ -846,8 +846,8 @@ fav.PositionX.ToString()), out int favPositionX);
                 return;
             }
 
-            contextAddToFavs.Enabled = SettingsWrapper.Instance.CanAddFavorite(pd.BinaryName) &&
-                                       SettingsWrapper.Instance.CanAddFavorite(pd.WindowTitle);
+            contextAddToFavs.Enabled = UserPreferences.Instance.CanAddFavorite(pd.BinaryName) &&
+                                       UserPreferences.Instance.CanAddFavorite(pd.WindowTitle);
 
             if (Screen.AllScreens.Length < 2)
             {
@@ -899,7 +899,7 @@ fav.PositionX.ToString()), out int favPositionX);
             // set the title
             Text = "Borderless Gaming " + Assembly.GetExecutingAssembly().GetName().Version.ToString(3) + ((Uac.Elevated) ? " [Administrator]" : "");
 
-            var settings = SettingsWrapper.Instance.Settings;
+            var settings = UserPreferences.Instance.Settings;
             // load up settings
             toolStripRunOnStartup.Checked = settings.RunOnStartup.GetValueOrDefault();
             toolStripGlobalHotkey.Checked = settings.UseGlobalHotkey.GetValueOrDefault();
@@ -913,7 +913,7 @@ fav.PositionX.ToString()), out int favPositionX);
             toolStripSlowWindowDetection.Checked = settings.SlowWindowDetection.GetValueOrDefault();
 
             // minimize the window if desired (hiding done in Shown)
-            if (settings.StartMinimized.GetValueOrDefault() || SettingsWrapper.Instance.StartupOptions.Minimize)
+            if (settings.StartMinimized.GetValueOrDefault() || UserPreferences.Instance.StartupOptions.Minimize)
             {
                 WindowState = FormWindowState.Minimized;
             }
@@ -943,19 +943,19 @@ fav.PositionX.ToString()), out int favPositionX);
 
         private void ToolStripDisableSteamIntegrationCheckChanged(object sender, EventArgs e)
         {
-            SettingsWrapper.Instance.Settings.DisableSteamIntegration = _toolStripDisableSteamIntegration.Checked;
-            SettingsWrapper.Save();
+            UserPreferences.Instance.Settings.DisableSteamIntegration = _toolStripDisableSteamIntegration.Checked;
+            UserPreferences.Instance.Save();
         }
 
         private void MainWindow_Shown(object sender, EventArgs e)
         {
             // hide the window if desired (this doesn't work well in Load)
-            if (SettingsWrapper.Instance.Settings.StartMinimized.GetValueOrDefault() || SettingsWrapper.Instance.StartupOptions.Minimize)
+            if (UserPreferences.Instance.Settings.StartMinimized.GetValueOrDefault() || UserPreferences.Instance.StartupOptions.Minimize)
             {
                 Hide();
-            }
+            } 
             // initialize favorite list
-            foreach (var ni in SettingsWrapper.Instance.Favorites)
+            foreach (var ni in UserPreferences.Instance.Favorites)
             {
                 lstFavorites.Items.Add(ni);
             }
@@ -992,7 +992,7 @@ fav.PositionX.ToString()), out int favPositionX);
             if (!_closingFromExitMenu)
             {
                 // ... and they have the preference set to close-to-tray ...
-                if (SettingsWrapper.Instance.Settings.CloseToTray is true)
+                if (UserPreferences.Instance.Settings.CloseToTray is true)
                 {
                     // ... then minimize the app and do not exit (minimizing will trigger another event to hide the form)
                     WindowState = FormWindowState.Minimized;
@@ -1065,7 +1065,7 @@ fav.PositionX.ToString()), out int favPositionX);
             {
                 trayIcon.Visible = true;
 
-                if (SettingsWrapper.Instance.Settings.HideBalloonTips is true && SettingsWrapper.Instance.StartupOptions.Silent is false)
+                if (UserPreferences.Instance.Settings.HideBalloonTips is true && UserPreferences.Instance.StartupOptions.Silent is false)
                 {
                     // Display a balloon tooltip message for 2 seconds
                     trayIcon.BalloonTipText = string.Format(Resources.TrayMinimized, "Borderless Gaming");
@@ -1090,18 +1090,18 @@ fav.PositionX.ToString()), out int favPositionX);
         {
             UnregisterHotkeys();
 
-            if (SettingsWrapper.Instance.Settings.UseGlobalHotkey is true)
+            if (UserPreferences.Instance.Settings.UseGlobalHotkey is true)
             {
                 Native.RegisterHotKey(Handle, GetType().GetHashCode(), MakeBorderlessHotKeyModifier,
                     MakeBorderlessHotKey);
             }
 
-            if (SettingsWrapper.Instance.Settings.UseMouseLockHotKey is true)
+            if (UserPreferences.Instance.Settings.UseMouseLockHotKey is true)
             {
                 Native.RegisterHotKey(Handle, GetType().GetHashCode(), 0, MouseLockHotKey);
             }
 
-            if (SettingsWrapper.Instance.Settings.UseMouseHideHotKey is true)
+            if (UserPreferences.Instance.Settings.UseMouseHideHotKey is true)
             {
                 Native.RegisterHotKey(Handle, GetType().GetHashCode(), MouseHideHotKeyModifier, MouseHideHotKey);
             }
@@ -1194,9 +1194,9 @@ fav.PositionX.ToString()), out int favPositionX);
 
         private void muteInBackgroundToolStripMenuItem_Click(object sender, EventArgs e)
         {
-
+      
             var fav = (Favorite)lstFavorites.SelectedItem;
-            SettingsWrapper.Instance.RemoveFavorite(fav, () =>
+            UserPreferences.Instance.RemoveFavorite(fav, () =>
             {
                 lstFavorites.Items.Remove(fav);
             });
