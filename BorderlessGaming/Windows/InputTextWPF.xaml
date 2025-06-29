@@ -10,5 +10,12 @@
         Height="450"
         d:DataContext="{d:DesignInstance viewModel:InputTextViewModel}"
         mc:Ignorable="d">
-  <Grid />
+  <Grid>
+    <Label Content="{Binding Path=Instructions}" />
+    <TextBox Text="{Binding Path=Input}" />
+    <Button Command="{Binding Path=OKButtonClicked}"
+            Content="{Binding Path=OKButtonLabel}" />
+    <Button Command="{Binding Path=CancelButtonClicked}"
+            Content="{Binding Path=CancelButtonLabel}" />
+  </Grid>
 </Window>

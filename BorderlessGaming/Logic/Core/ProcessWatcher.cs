@@ -5,6 +5,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
+using Windows.Win32.Foundation;
+
 using BorderlessGaming.Logic.Models;
 using BorderlessGaming.Logic.Misc.Utilities;
 using BorderlessGaming.Logic.Windows;
@@ -12,8 +15,6 @@ using BorderlessGaming.Logic.NekoBoiNick;
 
 namespace BorderlessGaming.Logic.Core
 {
-
-
     public class ProcessWatcher
     {
         #nullable enable
@@ -152,6 +153,25 @@ namespace BorderlessGaming.Logic.Core
                 await Manipulation.MakeWindowBorderless(pd, _form, hWnd, screen.Bounds, favDetails ?? Favorite.FromWindow(pd));
             }
             if (_window != null) {
+                await Manipulation.MakeWindowBorderless(pd, _window, new HWND(hWnd), screen.Bounds, favDetails ?? Favorite.FromWindow(pd));
+            }
+        }
+
+        /// <summary>
+        ///     remove the menu, resize the window, remove border, and maximize
+        /// </summary>
+        public async Task RemoveBorder_ToSpecificScreen(IntPtr hWnd, WpfScreen screen, Favorite favDetails = null,
+            bool overrideTimeout = false)
+        {
+            if (favDetails != null && favDetails.DelayBorderless && overrideTimeout == false)
+            {
+                //Wait 10 seconds before removing the border.
+                var task = new Task(async () => await RemoveBorder_ToSpecificScreen(hWnd, screen, favDetails, true));
+                task.Wait(TimeSpan.FromSeconds(10));
+            }
+
+            var pd = FromHandle(hWnd);
+            if (_window != null) {
                 await Manipulation.MakeWindowBorderless(pd, _window, hWnd, screen.Bounds, favDetails ?? Favorite.FromWindow(pd));
             }
         }
@@ -172,6 +192,21 @@ namespace BorderlessGaming.Logic.Core
             if (_form != null) {
                 await Manipulation.MakeWindowBorderless(pd, _form, hWnd, targetFrame, favDetails ?? Favorite.FromWindow(pd));
             }
+        }
+
+        /// <summary>
+        ///     remove the menu, resize the window, remove border, and maximize
+        /// </summary>
+        public async Task RemoveBorder_ToSpecificRect(IntPtr hWnd, System.Windows.Int32Rect targetFrame, Favorite favDetails = null,
+            bool overrideTimeout = false)
+        {
+            if (favDetails != null && favDetails.DelayBorderless && overrideTimeout == false)
+            {
+                //Wait 10 seconds before removing the border.
+                var task = new Task(async () => await RemoveBorder_ToSpecificRect(hWnd, targetFrame, favDetails, true));
+                task.Wait(TimeSpan.FromSeconds(10));
+            }
+            var pd = FromHandle(hWnd);
             if (_window != null) {
                 await Manipulation.MakeWindowBorderless(pd, _window, hWnd, targetFrame, favDetails ?? Favorite.FromWindow(pd));
             }
@@ -273,7 +308,7 @@ namespace BorderlessGaming.Logic.Core
                 {
                     _callback(null, false);
                 }
-            }, Processes.Where(p => p.WindowHandle != IntPtr.Zero).Select(p => p.WindowHandle).ToList());
+            }, Processes.Where(p => p.WindowHandle != HWND.Null).Select(p => p.WindowHandle).ToList());
         }
     }
 }

@@ -3,6 +3,11 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Threading.Tasks;
+
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.WindowsAndMessaging;
+
 using BorderlessGaming.Logic.Misc.Utilities;
 using BorderlessGaming.Logic.Windows;
 
@@ -11,7 +16,7 @@ namespace BorderlessGaming.Logic.Models
     public class ProcessDetails
     {
         //public string WindowClass = ""; // note: this isn't used, currently
-        private IntPtr _windowHandle = IntPtr.Zero;
+        private HWND _windowHandle = HWND.Null;
 
         public string DescriptionOverride = "";
         public bool MadeBorderless = false;
@@ -19,12 +24,23 @@ namespace BorderlessGaming.Logic.Models
         public bool Manageable = false;
         public bool NoAccess;
         public Rectangle OriginalLocation = new Rectangle();
-        public WindowStyleFlags OriginalStyleFlagsExtended = 0;
-        public WindowStyleFlags OriginalStyleFlagsStandard = 0;
+        internal WINDOW_EX_STYLE OriginalStyleFlagsExtended = 0;
+        internal WINDOW_STYLE OriginalStyleFlagsStandard = 0;
         public Process Proc;
         public string WindowTitle = "<unknown>";
 
         public ProcessDetails(Process p, IntPtr hWnd)
+        {
+            Proc = p;
+
+            WindowHandle = new HWND(hWnd);
+            WindowTitle = Native.GetWindowTitle(WindowHandle);
+          //  GetWindowTitle();
+
+            //this.WindowClass = WindowsAPI.Native.GetWindowClassName(this.WindowHandle); // note: this isn't used, currently
+        }
+
+        internal ProcessDetails(Process p, HWND hWnd)
         {
             Proc = p;
 
@@ -44,7 +60,7 @@ namespace BorderlessGaming.Logic.Models
         }
 
         // Automatically detects changes to the window handle
-        public IntPtr WindowHandle
+        internal HWND WindowHandle
         {
             get
             {
@@ -52,10 +68,10 @@ namespace BorderlessGaming.Logic.Models
                 {
                     if (ProcessHasExited)
                     {
-                        return IntPtr.Zero;
+                        return HWND.Null;
                     }
 
-                    if (!Native.IsWindow(_windowHandle))
+                    if (!PInvoke.IsWindow(_windowHandle))
                     {
                         _windowHandle = Native.GetMainWindowForProcess(Proc).GetAwaiter().GetResult();
                     }
@@ -126,8 +142,8 @@ namespace BorderlessGaming.Logic.Models
             var targetable = false;
             await TaskUtilities.StartTaskAndWait(() =>
              {
-                 var styleCurrentWindowStandard = Native.GetWindowLong(WindowHandle, WindowLongIndex.Style);
-                 var styleCurrentWindowExtended = Native.GetWindowLong(WindowHandle, WindowLongIndex.ExtendedStyle);
+                 var styleCurrentWindowStandard = Native.GetWindowLong32(WindowHandle, WINDOW_LONG_PTR_INDEX.GWL_STYLE);
+                 var styleCurrentWindowExtended = Native.GetWindowLong64(WindowHandle, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
                  targetable = styleCurrentWindowStandard.HasTargetStyles() || styleCurrentWindowExtended.HasExtendedStyles();
              }, SettingsWrapper.Instance.DetectionDelay);
             return targetable;
@@ -144,8 +160,8 @@ namespace BorderlessGaming.Logic.Models
 
                 if (SettingsWrapper.Instance.Settings.ViewAllProcessDetails is true)
                 {
-                    var styleCurrentWindowStandard = Native.GetWindowLong(WindowHandle, WindowLongIndex.Style);
-                    var styleCurrentWindowExtended = Native.GetWindowLong(WindowHandle, WindowLongIndex.ExtendedStyle);
+                    var styleCurrentWindowStandard = Native.GetWindowLong32(WindowHandle, WINDOW_LONG_PTR_INDEX.GWL_STYLE);
+                    var styleCurrentWindowExtended = Native.GetWindowLong64(WindowHandle, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
 
                     var extraDetails =
                         $" [{(uint) styleCurrentWindowStandard:X8}.{(uint) styleCurrentWindowExtended:X8}]";

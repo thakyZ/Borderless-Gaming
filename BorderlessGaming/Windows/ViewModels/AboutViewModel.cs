@@ -12,7 +12,8 @@ namespace BorderlessGaming.Windows.ViewModels
 {
     internal class AboutViewModel : INotifyPropertyChanged
     {
-        private AboutWPF Parent { get; }
+        private AboutWPF? Parent { get; }
+
         public AboutViewModel(AboutWPF parent)
         {
             this.Parent = parent;

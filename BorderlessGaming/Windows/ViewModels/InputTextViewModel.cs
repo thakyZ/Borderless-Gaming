@@ -12,7 +12,7 @@ namespace BorderlessGaming.Windows.ViewModels
 {
     internal class InputTextViewModel : INotifyPropertyChanged
     {
-        private InputTextWPF Parent { get; }
+        private InputTextWPF? Parent { get; }
         public InputTextViewModel(InputTextWPF parent)
         {
             this.Parent = parent;
@@ -41,54 +41,44 @@ namespace BorderlessGaming.Windows.ViewModels
 
         #region Localization Bindings
 
-        public string Title => "Input Position & Size";
-        public string PositionXLabel => "Position X";
-        public string PositionYLabel => "Position Y";
-        public string SizeWLabel => "Size W";
-        public string SizeHLabel => "Size H";
-        public string OKButtonLabel => "OK";
-        public string CancelButtonLabel => "Cancel";
+        private string? title;
+        public string? Title { // "Input Position & Size";
+            get => title;
+            set => NotifyPropertyChanged<string?>(ref title, value);
+        }
+        private string? oKButtonLabel;
+        public string? OKButtonLabel { // "OK";
+            get => oKButtonLabel;
+            set => NotifyPropertyChanged<string?>(ref oKButtonLabel, value);
+        }
+        private string? cancelButtonLabel;
+        public string? CancelButtonLabel { // "Cancel";
+            get => cancelButtonLabel;
+            set => NotifyPropertyChanged<string?>(ref cancelButtonLabel, value);
+        }
 
         #endregion Localization Bindings
 
         #region Value Bindings
 
-        private int positionX = 0;
-        public int PositionX
+        private string? input;
+        public string? Input
         {
-            get => positionX;
-            set => NotifyPropertyChanged<int>(ref positionX, value);
+            get => input;
+            set => NotifyPropertyChanged<string?>(ref input, value);
         }
 
-        private int positionY = 0;
-        public int PositionY
+        private string? instructions;
+        public string? Instructions
         {
-            get => positionY;
-            set => NotifyPropertyChanged<int>(ref positionY, value);
-        }
-
-        private int sizeW = 0;
-        public int SizeW
-        {
-            get => sizeW;
-            set => NotifyPropertyChanged<int>(ref sizeW, value);
-        }
-
-        private int sizeH = 0;
-        public int SizeH
-        {
-            get => sizeH;
-            set => NotifyPropertyChanged<int>(ref sizeH, value);
+            get => instructions;
+            set => NotifyPropertyChanged<string?>(ref instructions, value);
         }
 
         #endregion Value Bindings
 
         #region Commands
 
-        public ICommand PositionXSpinnerValueChanged => new CommandImpl<int>(OnPositionXSpinnerValueChanged);
-        public ICommand PositionYSpinnerValueChanged => new CommandImpl<int>(OnPositionYSpinnerValueChanged);
-        public ICommand SizeWSpinnerValueChanged => new CommandImpl<int>(OnSizeWSpinnerValueChanged);
-        public ICommand SizeHSpinnerValueChanged => new CommandImpl<int>(OnSizeHSpinnerValueChanged);
         public ICommand CancelButtonClicked => new CommandImpl(OnCancelButtonClicked);
         public ICommand OKButtonClicked => new CommandImpl(OnOKButtonClicked);
 

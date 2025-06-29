@@ -27,11 +27,11 @@ namespace BorderlessGaming.Windows
             preStartup.Invoke();
         }
 
-        private void OnExit(object? sender, System.Windows.ExitEventArgs @event)
+        public void OnExit(object? sender, ExitEventArgs @event)
         {
         }
 
-        private void OnStartup(object? sender, System.Windows.StartupEventArgs @event)
+        public void OnStartup(object? sender, StartupEventArgs @event)
         {
             this.MainWindow = new MainWindowWPF();
             this.MainWindow.Show();

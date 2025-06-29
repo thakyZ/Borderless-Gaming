@@ -20,13 +20,46 @@ namespace BorderlessGaming.Windows
     /// <summary>
     /// Interaction logic for InputTextWPF.xaml
     /// </summary>
-    public partial class InputTextWPF : Window
+    public partial class InputTextWPF : Window, IDisposable
     {
-        private InputTextViewModel ViewModel => (this.DataContext as InputTextViewModel)!;
+        internal InputTextViewModel ViewModel {
+            get => ((this.DataContext ?? new InputTextViewModel(this)) as InputTextViewModel)!;
+            set => this.DataContext = value;
+        }
+
         public InputTextWPF()
         {
             InitializeComponent();
-            this.DataContext = new InputTextViewModel(this);
+        }
+
+        public new MessageBoxResult ShowDialog()
+        {
+            return MessageBoxResult.None;
+        }
+
+        public void SetTitle(string? title)
+        {
+            this.ViewModel.Title = title;
+        }
+
+        public void SetInstructions(string? instructions)
+        {
+            this.ViewModel.Instructions = instructions;
+        }
+
+        public void SetInput(string? input)
+        {
+            this.ViewModel.Input = input;
+        }
+
+        public string? GetCurrentValue()
+        {
+            return this.ViewModel.Input;
+        }
+
+        public void Dispose()
+        {
+            base.Close();
         }
     }
 }

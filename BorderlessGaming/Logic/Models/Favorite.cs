@@ -44,6 +44,11 @@ namespace BorderlessGaming.Logic.Models
             return new Favorite {SearchText = pd.BinaryName, Screen = ProcessRectangle.Empty};
         }
 
+        public System.Windows.Point GetWindowSize()
+        {
+            return new System.Windows.Point(this.PositionWidth, this.PositionHeight);
+        }
+
         public bool IsRunning { get; set; }
 
         public int RunningId { get; set; }

@@ -12,7 +12,7 @@ namespace BorderlessGaming.Windows.ViewModels
 {
     internal class InputSizeViewModel : INotifyPropertyChanged
     {
-        private InputSizeWPF Parent { get; }
+        private InputSizeWPF? Parent { get; }
         public InputSizeViewModel(InputSizeWPF parent)
         {
             this.Parent = parent;
@@ -40,14 +40,42 @@ namespace BorderlessGaming.Windows.ViewModels
         #region Bindings
 
         #region Localization Bindings
-
-        public string Title => "Input Position & Size";
-        public string PositionXLabel => "Position X";
-        public string PositionYLabel => "Position Y";
-        public string SizeWLabel => "Size W";
-        public string SizeHLabel => "Size H";
-        public string OKButtonLabel => "OK";
-        public string CancelButtonLabel => "Cancel";
+        
+        private string? title;
+        public string? Title { // "Input Position & Size";
+            get => title;
+            set => NotifyPropertyChanged<string?>(ref title, value);
+        }
+        private string? positionXLabel;
+        public string? PositionXLabel { // "Position X";
+            get => positionXLabel;
+            set => NotifyPropertyChanged<string?>(ref positionXLabel, value);
+        }
+        private string? positionYLabel;
+        public string? PositionYLabel { // "Position Y";
+            get => positionYLabel;
+            set => NotifyPropertyChanged<string?>(ref positionYLabel, value);
+        }
+        private string? sizeWLabel;
+        public string? SizeWLabel { // "Size W";
+            get => sizeWLabel;
+            set => NotifyPropertyChanged<string?>(ref sizeWLabel, value);
+        }
+        private string? sizeHLabel;
+        public string? SizeHLabel { // "Size H";
+            get => sizeHLabel;
+            set => NotifyPropertyChanged<string?>(ref sizeHLabel, value);
+        }
+        private string? oKButtonLabel;
+        public string? OKButtonLabel { // "OK";
+            get => oKButtonLabel;
+            set => NotifyPropertyChanged<string?>(ref oKButtonLabel, value);
+        }
+        private string? cancelButtonLabel;
+        public string? CancelButtonLabel { // "Cancel";
+            get => cancelButtonLabel;
+            set => NotifyPropertyChanged<string?>(ref cancelButtonLabel, value);
+        }
 
         #endregion Localization Bindings
 

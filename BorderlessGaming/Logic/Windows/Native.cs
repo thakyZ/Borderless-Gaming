@@ -7,10 +7,16 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+
+using Windows.Win32;
+
 using BorderlessGaming.Logic.Models;
 using BorderlessGaming.Logic.Misc.Utilities;
 using BorderlessGaming.Logic.Windows.Audio;
 using BorderlessGaming.Logic.Extensions;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.WindowsAndMessaging;
+using Windows.Win32.UI.Input.KeyboardAndMouse;
 
 namespace BorderlessGaming.Logic.Windows
 {
@@ -22,152 +28,55 @@ namespace BorderlessGaming.Logic.Windows
 
         #endregion
 
+        internal static readonly HWND HWND_TOPMOST = new HWND(new IntPtr(-1));
+        internal static readonly HWND HWND_NOTTOPMOST = new HWND(new IntPtr(-2));
         public const int INVALID_HANDLE_VALUE = -1;
-        private const uint WM_GETTEXT = 0x0000000D;
-        private const uint WM_GETTEXTLENGTH = 0x0000000E;
-        public const uint WM_MOUSEMOVE = 0x00000200;
-        public const uint WM_HOTKEY = 0x00000312;
 
-        public static List<WindowStyleFlags> TargetStyles = new List<WindowStyleFlags>
+        internal static List<WINDOW_STYLE> TargetStyles = new List<WINDOW_STYLE>
         {
-            WindowStyleFlags.Border,
-            WindowStyleFlags.DialogFrame,
-            WindowStyleFlags.ThickFrame,
-            WindowStyleFlags.SystemMenu,
-            WindowStyleFlags.MaximizeBox,
-            WindowStyleFlags.MinimizeBox
+            WINDOW_STYLE.WS_BORDER,
+            WINDOW_STYLE.WS_DLGFRAME,
+            WINDOW_STYLE.WS_THICKFRAME,
+            WINDOW_STYLE.WS_SYSMENU,
+            WINDOW_STYLE.WS_MAXIMIZEBOX,
+            WINDOW_STYLE.WS_MINIMIZE
         };
 
-        public static List<WindowStyleFlags> ExtendedStyles = new List<WindowStyleFlags>
+        internal static List<WINDOW_EX_STYLE> ExtendedStyles = new List<WINDOW_EX_STYLE>
         {
-            WindowStyleFlags.ExtendedDlgModalFrame,
-            WindowStyleFlags.ExtendedComposited,
-            WindowStyleFlags.ExtendedWindowEdge,
-            WindowStyleFlags.ExtendedClientEdge,
-            WindowStyleFlags.ExtendedLayered,
-            WindowStyleFlags.ExtendedStaticEdge,
-            WindowStyleFlags.ExtendedToolWindow,
-            WindowStyleFlags.ExtendedAppWindow
+            WINDOW_EX_STYLE.WS_EX_DLGMODALFRAME,
+            WINDOW_EX_STYLE.WS_EX_COMPOSITED,
+            WINDOW_EX_STYLE.WS_EX_WINDOWEDGE,
+            WINDOW_EX_STYLE.WS_EX_CLIENTEDGE,
+            WINDOW_EX_STYLE.WS_EX_LAYERED,
+            WINDOW_EX_STYLE.WS_EX_STATICEDGE,
+            WINDOW_EX_STYLE.WS_EX_TOOLWINDOW,
+            WINDOW_EX_STYLE.WS_EX_APPWINDOW
         };
-
-        public static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
-        public static readonly IntPtr HWND_NOTTOPMOST = new IntPtr(-2);
 
         private static readonly object GetMainWindowForProcess_Locker = new object();
 
-        private static IntPtr GetMainWindowForProcess_Value = IntPtr.Zero;
+        private static HWND GetMainWindowForProcess_Value = HWND.Null;
 
-        public static bool HasTargetStyles(this WindowStyleFlags flags)
+        internal static bool HasTargetStyles(this WINDOW_STYLE flags)
         {
             return TargetStyles.Any(style => flags.HasFlag(style));
         }
 
-        public static bool HasExtendedStyles(this WindowStyleFlags flags)
+        internal static bool HasExtendedStyles(this WINDOW_EX_STYLE flags)
         {
             return ExtendedStyles.Any(style => flags.HasFlag(style));
         }
 
-        /// <summary>
-        ///     This is the raw WinAPI.  You may want to use GetWindowTitle instead, since it will automatically
-        ///     calculate the correct buffer length.
-        /// </summary>
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern int GetWindowText(IntPtr hWnd, StringBuilder title, int size);
-
-        /// <summary>
-        ///     This is the raw WinAPI.  You may want to use GetWindowTitle instead, since it will automatically
-        ///     calculate the correct buffer length.
-        /// </summary>
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern int GetWindowText(int hWnd, StringBuilder title, int size);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool SetWindowText(IntPtr hwnd, string lpString);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern int GetWindowModuleFileName(IntPtr hWnd, StringBuilder title, int size);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy,
-            SetWindowPosFlags uFlags);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern int GetWindowModuleFileName(int hWnd, StringBuilder title, int size);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern int EnumWindows(EnumWindows_CallBackProc callPtr, int lPar);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool IsWindowVisible(IntPtr hWnd);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        internal static extern bool MoveWindow(IntPtr hWnd, int X, int Y, int nWidth, int nHeight, bool bRepaint);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern int GetSystemMetrics(SystemMetric smIndex);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string lpszClass,
-            string lpszWindow);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern IntPtr GetMenu(IntPtr hWnd);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern int GetMenuItemCount(IntPtr hMenu);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool DrawMenuBar(IntPtr hWnd);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool RemoveMenu(IntPtr hMenu, uint uPosition, MenuFlags uFlags);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern IntPtr SetWindowPos(IntPtr hWnd, int hWndInsertAfter, int x, int y, int cx, int cy,
-            SetWindowPosFlags wFlags);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern IntPtr GetForegroundWindow();
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool RegisterHotKey(IntPtr hWnd, int id, int fsModifiers, int keycode);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool GetClientRect(IntPtr hWnd, ref Rect lpRect);
-
-        [DllImport("user32.dll")]
-        public static extern int ClientToScreen(IntPtr hwnd, [MarshalAs(UnmanagedType.Struct)] ref POINTAPI lpPoint);
-
-        [DllImport("User32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        public static extern long GetClassName(IntPtr hwnd, StringBuilder lpClassName, long nMaxCount);
-
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool ShowWindow(IntPtr hWnd, WindowShowStyle nCmdShow);
-
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto, EntryPoint = "GetClassName")]
-        private static extern int GetWindowClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
-
-
-        public static string GetClassNameOfWindow(IntPtr hwnd)
+        internal static string GetClassNameOfWindow(HWND hwnd)
         {
             var className = "";
-            StringBuilder classText = null;
+            PWSTR classText = default;
             try
             {
                 var cls_max_length = 1000;
-                classText = new StringBuilder("", cls_max_length + 5);
-                GetClassName(hwnd, classText, cls_max_length + 2);
+                classText = new PWSTR();
+                PInvoke.GetClassName(hwnd, classText, cls_max_length + 2);
 
                 if (!string.IsNullOrEmpty(classText.ToString()) && !string.IsNullOrWhiteSpace(classText.ToString()))
                 {
@@ -185,15 +94,15 @@ namespace BorderlessGaming.Logic.Windows
             return className;
         }
 
-        public static string GetWindowClassName(IntPtr hWnd)
+        internal static string GetWindowClassName(HWND hWnd)
         {
             int nRet;
 
             // Pre-allocate 256 characters, since this is the maximum class name length.
-            var sbWindowClassName = new StringBuilder(256);
+            var sbWindowClassName = new PWSTR();
 
             //Get the window class name
-            nRet = GetWindowClassName(hWnd, sbWindowClassName, sbWindowClassName.Capacity);
+            nRet = PInvoke.GetClassName(hWnd, sbWindowClassName, 256);
 
             if (nRet != 0)
             {
@@ -203,26 +112,17 @@ namespace BorderlessGaming.Logic.Windows
             return string.Empty;
         }
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto, EntryPoint = "SendMessage")]
-        public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, EntryPoint = "SendMessage")]
-        public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, uint wParam, uint lParam);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, EntryPoint = "SendMessage")]
-        public static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, [Out] StringBuilder lParam);
-
         /// <summary>
         ///     Use this instead of GetWindowText.
         /// </summary>
-        public static string GetWindowTitle(IntPtr hWnd)
+        internal static string GetWindowTitle(HWND hWnd)
         {
             // Allocate correct string length first
             try
             {
-                var length = (int)SendMessage(hWnd, WM_GETTEXTLENGTH, IntPtr.Zero, IntPtr.Zero);
+                var length = (int)PInvoke.SendMessage(hWnd, PInvoke.WM_GETTEXTLENGTH, new WPARAM(), new LPARAM(IntPtr.Zero));
                 var sbWindowTitle = new StringBuilder(length + 1);
-                SendMessage(hWnd, WM_GETTEXT, (IntPtr)sbWindowTitle.Capacity, sbWindowTitle);
+                PInvoke.SendMessage(hWnd, PInvoke.WM_GETTEXT, new WPARAM((nuint)sbWindowTitle.Capacity), new LPARAM()); // sbWindowTitle.ToString());
                 return sbWindowTitle.ToString();
             }
             catch (Exception)
@@ -231,104 +131,67 @@ namespace BorderlessGaming.Logic.Windows
             }
         }
 
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool GetWindowRect(IntPtr hwnd, out Rect lpRect);
-
-        public static IntPtr FW(IntPtr hwndParent, string lpszClass)
+        internal static IntPtr FW(HWND hwndParent, string lpszClass)
         {
-            return FindWindowEx(hwndParent, IntPtr.Zero, lpszClass, string.Empty);
+            return PInvoke.FindWindowEx(hwndParent, HWND.Null, lpszClass, string.Empty);
         }
 
-        [DllImport("user32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SystemParametersInfo(SPI uiAction, uint uiParam, IntPtr pvParam, SPIF fWinIni);
-
-        // For setting a string parameter
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SystemParametersInfo(SPI uiAction, uint uiParam, string pvParam, SPIF fWinIni);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SystemParametersInfo(SPI uiAction, uint uiParam, ref Rect pvParam, SPIF fWinIni);
-
-        [DllImport("user32.dll")]
-        public static extern bool SetSystemCursor(IntPtr hcur, OCR_SYSTEM_CURSORS id);
-
-        [DllImport("user32.dll")]
-        public static extern IntPtr CopyIcon(IntPtr hIcon);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool DestroyIcon(IntPtr hIcon);
-
-        [DllImport("User32.dll", CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        public static extern IntPtr LoadCursorFromFile(string str);
-
-        [DllImport("user32.dll", EntryPoint = "GetWindowLong", SetLastError = true)]
-        private static extern WindowStyleFlags GetWindowLong32(IntPtr hWnd, WindowLongIndex nIndex);
-
-        [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr", SetLastError = true)]
-        private static extern WindowStyleFlags GetWindowLong64(IntPtr hWnd, WindowLongIndex nIndex);
+        internal static IntPtr FW(IntPtr hwndParent, string lpszClass)
+        {
+            return FW(new HWND(hwndParent), lpszClass);
+        }
 
         /// <summary>
         // This static method is required because legacy OSes do not support SetWindowLongPtr
         /// </summary>
-        public static WindowStyleFlags GetWindowLong(IntPtr hWnd, WindowLongIndex nIndex)
+        internal static WINDOW_STYLE GetWindowLong32(HWND hWnd, WINDOW_LONG_PTR_INDEX nIndex)
         {
-            if (IntPtr.Size == 8)
-            {
-                return GetWindowLong64(hWnd, nIndex);
-            }
-
-            return GetWindowLong32(hWnd, nIndex);
+            return (WINDOW_STYLE)PInvoke.GetWindowLongPtr(hWnd, nIndex);
         }
-
-        [DllImport("user32.dll", EntryPoint = "SetWindowLong", SetLastError = true)]
-        private static extern WindowStyleFlags SetWindowLong32(IntPtr hWnd, WindowLongIndex nIndex,
-            WindowStyleFlags dwNewLong);
-
-        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr", SetLastError = true)]
-        private static extern WindowStyleFlags SetWindowLong64(IntPtr hWnd, WindowLongIndex nIndex,
-            WindowStyleFlags dwNewLong);
 
         /// <summary>
         // This static method is required because legacy OSes do not support SetWindowLongPtr
         /// </summary>
-        public static WindowStyleFlags SetWindowLong(IntPtr hWnd, WindowLongIndex nIndex, WindowStyleFlags dwNewLong)
+        internal static WINDOW_EX_STYLE GetWindowLong64(HWND hWnd, WINDOW_LONG_PTR_INDEX nIndex)
         {
-            return IntPtr.Size == 8
-                ? SetWindowLong64(hWnd, nIndex, dwNewLong)
-                : SetWindowLong32(hWnd, nIndex, dwNewLong);
+            return (WINDOW_EX_STYLE)PInvoke.GetWindowLongPtr(hWnd, nIndex);
         }
 
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool IsWindow(IntPtr hWnd);
+        /// <summary>
+        // This static method is required because legacy OSes do not support SetWindowLongPtr
+        /// </summary>
+        internal static WINDOW_STYLE SetWindowLong32(HWND hWnd, WINDOW_LONG_PTR_INDEX nIndex, WINDOW_STYLE dwNewLong)
+        {
+            int _dwNewLong = (int)dwNewLong;
+            return (WINDOW_STYLE)PInvoke.SetWindowLongPtr(hWnd, nIndex, _dwNewLong);
+        }
 
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
-
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool EnumThreadWindows(int dwThreadId, EnumWindows_CallBackProc lpfn, uint lParam);
+        /// <summary>
+        // This static method is required because legacy OSes do not support SetWindowLongPtr
+        /// </summary>
+        internal static WINDOW_EX_STYLE SetWindowLong64(HWND hWnd, WINDOW_LONG_PTR_INDEX nIndex, WINDOW_EX_STYLE dwNewLong)
+        {
+            int _dwNewLong = (int)dwNewLong;
+            return (WINDOW_EX_STYLE)PInvoke.SetWindowLongPtr(hWnd, nIndex, _dwNewLong);
+        }
 
         // Do some preferential treatment to windows
-        private static bool GetMainWindowForProcess_EnumWindows(IntPtr hWndEnumerated, uint lParam)
+        private static BOOL GetMainWindowForProcess_EnumWindows(HWND hWndEnumerated, LPARAM lParam)
         {
-            if (GetMainWindowForProcess_Value == IntPtr.Zero)
+            if (GetMainWindowForProcess_Value == HWND.Null)
             {
-                var styleCurrentWindow_standard = GetWindowLong(hWndEnumerated, WindowLongIndex.Style);
+                var styleCurrentWindow_standard = GetWindowLong32(hWndEnumerated, WINDOW_LONG_PTR_INDEX.GWL_STYLE);
 
-                if (lParam == 0) // strict: windows that are visible and have a border
+                if (lParam.Value == 0) // strict: windows that are visible and have a border
                 {
-                    if (IsWindowVisible(hWndEnumerated))
+                    if (PInvoke.IsWindowVisible(hWndEnumerated))
                     {
                         if
                         (
-                            (styleCurrentWindow_standard & WindowStyleFlags.Caption) > 0
+                            (styleCurrentWindow_standard & WINDOW_STYLE.WS_CAPTION) > 0
                             && (
-                                (styleCurrentWindow_standard & WindowStyleFlags.Border) > 0
-                                || (styleCurrentWindow_standard & WindowStyleFlags.ThickFrame) > 0
+                                (styleCurrentWindow_standard & WINDOW_STYLE.WS_BORDER) > 0
+                                || (styleCurrentWindow_standard & WINDOW_STYLE.WS_THICKFRAME) > 0
                             )
                         )
                         {
@@ -337,9 +200,9 @@ namespace BorderlessGaming.Logic.Windows
                         }
                     }
                 }
-                else if (lParam == 1) // loose: windows that are visible
+                else if (lParam.Value == 1) // loose: windows that are visible
                 {
-                    if (IsWindowVisible(hWndEnumerated))
+                    if (PInvoke.IsWindowVisible(hWndEnumerated))
                     {
                         if ((uint)styleCurrentWindow_standard != 0)
                         {
@@ -359,32 +222,32 @@ namespace BorderlessGaming.Logic.Windows
         /// </summary>
         /// <param name="process"></param>
         /// <returns></returns>
-        public static async Task<IntPtr> GetMainWindowForProcess(Process process)
+        internal static async Task<HWND> GetMainWindowForProcess(Process process)
         {
             if (SettingsWrapper.Instance.Settings.SlowWindowDetection is true)
             {
                 try
                 {
-                    var hMainWindow = IntPtr.Zero;
+                    var hMainWindow = HWND.Null;
 
-                    GetMainWindowForProcess_Value = IntPtr.Zero;
+                    GetMainWindowForProcess_Value = HWND.Null;
                     await TaskUtilities.StartTaskAndWait(() =>
                     {
                         for (uint i = 0; i <= 1; i++)
                         {
                             foreach (ProcessThread thread in process.Threads)
                             {
-                                if (GetMainWindowForProcess_Value != IntPtr.Zero)
+                                if (GetMainWindowForProcess_Value != HWND.Null)
                                 {
                                     break;
                                 }
 
-                                EnumThreadWindows(thread.Id, GetMainWindowForProcess_EnumWindows, i);
+                                PInvoke.EnumThreadWindows((uint)thread.Id, GetMainWindowForProcess_EnumWindows, new LPARAM((nint)i));
                             }
                         }
                     });
                     hMainWindow = GetMainWindowForProcess_Value;
-                    if (hMainWindow != IntPtr.Zero)
+                    if (hMainWindow != HWND.Null)
                     {
                         return hMainWindow;
                     }
@@ -398,13 +261,13 @@ namespace BorderlessGaming.Logic.Windows
             {
                 // Failsafe
                 //process.Refresh();
-                return process.MainWindowHandle;
+                return new HWND(process.MainWindowHandle);
             }
             catch
             {
             }
 
-            return IntPtr.Zero;
+            return HWND.Null;
         }
 
 
@@ -416,43 +279,46 @@ namespace BorderlessGaming.Logic.Windows
         ///     before
         /// </param>
         /// <param name="windowPtrSet">A set of current window ptrs</param>
-        public static void QueryProcessesWithWindows(Action<ProcessDetails> callback, List<IntPtr> windowPtrSet)
+        internal static void QueryProcessesWithWindows(Action<ProcessDetails> callback, List<HWND> windowPtrSet)
         {
-            var ptrList = new List<IntPtr>();
+            var hWndList = new List<HWND>();
 
-            bool Del(IntPtr hwnd, uint lParam)
+            BOOL Del(HWND hwnd, LPARAM lParam)
             {
-                return GetMainWindowForProcess_EnumWindows(ptrList, hwnd, lParam);
+                return GetMainWindowForProcess_EnumWindows(hWndList, hwnd, lParam);
             }
 
-            EnumWindows(Del, 0);
-            EnumWindows(Del, 1);
-            foreach (var ptr in ptrList)
+            PInvoke.EnumWindows(Del, 0);
+            PInvoke.EnumWindows(Del, 1);
+            foreach (var hWnd in hWndList)
             {
-                if (GetWindowRect(ptr, out Rect rect))
+                if (PInvoke.GetWindowRect(hWnd, out RECT rect))
                 {
                     if (((Rectangle)rect).IsEmpty)
                     {
                         continue;
                     }
-                    if (windowPtrSet.Contains(ptr))
+                    if (windowPtrSet.Contains(hWnd))
                     {
                         continue;
                     }
                     // If GetWindowThreadProcessId fails the entire application crashes, so hopefully this will handle it safely.
                     try
                     {
-                        uint processId;
-                        GetWindowThreadProcessId(ptr, out processId);
-                        var process = ProcessExtensions.GetProcessById((int)processId);
-                        if (process == null)
+                        unsafe
                         {
-                            continue;
+                            uint processId = default(uint);
+                            PInvoke.GetWindowThreadProcessId(hWnd, &processId);
+                            var process = ProcessExtensions.GetProcessById((int)processId);
+                            if (process == null)
+                            {
+                                continue;
+                            }
+                            callback(new ProcessDetails(process, hWnd)
+                            {
+                                Manageable = true
+                            });
                         }
-                        callback(new ProcessDetails(process, ptr)
-                        {
-                            Manageable = true
-                        });
                     }
                     catch
                     {
@@ -462,35 +328,34 @@ namespace BorderlessGaming.Logic.Windows
             }
         }
 
-        private static bool GetMainWindowForProcess_EnumWindows(List<IntPtr> ptrList, IntPtr hWndEnumerated,
-            uint lParam)
+        private static bool GetMainWindowForProcess_EnumWindows(List<HWND> hWndList, HWND hWndEnumerated, LPARAM lParam)
         {
-            var styleCurrentWindowStandard = GetWindowLong(hWndEnumerated, WindowLongIndex.Style);
+            var styleCurrentWindowStandard = GetWindowLong32(hWndEnumerated, WINDOW_LONG_PTR_INDEX.GWL_STYLE);
 
-            switch (lParam)
+            switch (lParam.Value)
             {
                 case 0:
-                    if (IsWindowVisible(hWndEnumerated))
+                    if (PInvoke.IsWindowVisible(hWndEnumerated))
                     {
                         if
                         (
-                            (styleCurrentWindowStandard & WindowStyleFlags.Caption) > 0
+                            (styleCurrentWindowStandard & WINDOW_STYLE.WS_CAPTION) > 0
                             && (
-                                (styleCurrentWindowStandard & WindowStyleFlags.Border) > 0
-                                || (styleCurrentWindowStandard & WindowStyleFlags.ThickFrame) > 0
+                                (styleCurrentWindowStandard & WINDOW_STYLE.WS_BORDER) > 0
+                                || (styleCurrentWindowStandard & WINDOW_STYLE.WS_THICKFRAME) > 0
                             )
                         )
                         {
-                            ptrList.Add(hWndEnumerated);
+                            hWndList.Add(hWndEnumerated);
                         }
                     }
                     break;
                 case 1:
-                    if (IsWindowVisible(hWndEnumerated))
+                    if (PInvoke.IsWindowVisible(hWndEnumerated))
                     {
                         if ((uint)styleCurrentWindowStandard != 0)
                         {
-                            ptrList.Add(hWndEnumerated);
+                            hWndList.Add(hWndEnumerated);
                         }
                     }
                     break;
@@ -521,165 +386,14 @@ namespace BorderlessGaming.Logic.Windows
             }
         }
 
-        /// <summary>
-        ///     Retrieves the handle to the ancestor of the specified window.
-        /// </summary>
-        /// <param name="hwnd">
-        ///     A handle to the window whose ancestor is to be retrieved.
-        ///     If this parameter is the desktop window, the function returns NULL.
-        /// </param>
-        /// <param name="flags">The ancestor to be retrieved.</param>
-        /// <returns>The return value is the handle to the ancestor window.</returns>
-        [DllImport("user32.dll", ExactSpelling = true)]
-        public static extern IntPtr GetAncestor(IntPtr hwnd, GetAncestorFlags flags);
-
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SetForegroundWindow(IntPtr hWnd);
-
-        [DllImport("user32.dll")]
-        public static extern IntPtr WindowFromPoint(int xPoint, int yPoint);
-
-        #region Nested type: POINTAPI
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct POINTAPI
+        public static void RegisterHotKey(nint handle, int id, int fsModifiers, uint vk)
         {
-            public int X;
-            public int Y;
+            PInvoke.RegisterHotKey(new HWND(handle), id, (HOT_KEY_MODIFIERS)fsModifiers, vk);
         }
 
-        #endregion
-
-        #region Nested type: RECT
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct Rect
+        public static void UnregisterHotKey(nint handle, int id)
         {
-            public int Left, Top, Right, Bottom;
-
-            public Rect(int left, int top, int right, int bottom)
-            {
-                Left = left;
-                Top = top;
-                Right = right;
-                Bottom = bottom;
-            }
-
-            public Rect(Rectangle r) : this(r.Left, r.Top, r.Right, r.Bottom)
-            {
-            }
-
-            public int X
-            {
-                get => Left;
-                set
-                {
-                    Right -= Left - value;
-                    Left = value;
-                }
-            }
-
-            public int Y
-            {
-                get => Top;
-                set
-                {
-                    Bottom -= Top - value;
-                    Top = value;
-                }
-            }
-
-            public int Height
-            {
-                get => Bottom - Top;
-                set => Bottom = value + Top;
-            }
-
-            public int Width
-            {
-                get => Right - Left;
-                set => Right = value + Left;
-            }
-
-            public Point Location
-            {
-                get => new Point(Left, Top);
-                set
-                {
-                    X = value.X;
-                    Y = value.Y;
-                }
-            }
-
-            public Size Size
-            {
-                get => new Size(Width, Height);
-                set
-                {
-                    Width = value.Width;
-                    Height = value.Height;
-                }
-            }
-
-            public static implicit operator Rectangle(Rect r)
-            {
-                return new Rectangle(r.Left, r.Top, r.Width, r.Height);
-            }
-
-            public static implicit operator Rect(Rectangle r)
-            {
-                return new Rect(r);
-            }
-
-            public static bool operator ==(Rect r1, Rect r2)
-            {
-                return r1.Equals(r2);
-            }
-
-            public static bool operator !=(Rect r1, Rect r2)
-            {
-                return !r1.Equals(r2);
-            }
-
-            public bool Equals(Rect r)
-            {
-                return r.Left == Left && r.Top == Top && r.Right == Right && r.Bottom == Bottom;
-            }
-
-            public override bool Equals(object obj)
-            {
-                if (obj is Rect)
-                {
-                    return Equals((Rect)obj);
-                }
-                if (obj is Rectangle)
-                {
-                    return Equals(new Rect((Rectangle)obj));
-                }
-                return false;
-            }
-
-            public override int GetHashCode()
-            {
-                return ((Rectangle)this).GetHashCode();
-            }
-
-            public override string ToString()
-            {
-                return string.Format(CultureInfo.CurrentCulture, "{{Left={0},Top={1},Right={2},Bottom={3}}}", Left, Top,
-                    Right, Bottom);
-            }
+            PInvoke.UnregisterHotKey(new HWND(handle), id);
         }
-
-        #endregion
-
-        public delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType,
-            IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern uint GetProcessIdOfThread(IntPtr handle);
-
-        [DllImport("user32.dll")]
-        public static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
     }
 }

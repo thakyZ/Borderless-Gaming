@@ -5,6 +5,10 @@ using System.Drawing;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
+using Windows.Win32;
+using Windows.Win32.Foundation;
+
 using BorderlessGaming.Logic.Core;
 using BorderlessGaming.Logic.Extensions;
 using BorderlessGaming.Logic.Models;
@@ -272,7 +276,7 @@ namespace BorderlessGaming.Forms
                 return;
             }
 
-            Native.SetWindowText(pd.WindowHandle,
+            PInvoke.SetWindowText(pd.WindowHandle,
                 InputText(LanguageManager.Data("setWindowTitleTitle"), LanguageManager.Data("setWindowTitlePrompt"),
                     Native.GetWindowTitle(pd.WindowHandle)));
         }
@@ -1120,7 +1124,7 @@ fav.PositionX.ToString()), out int favPositionX);
         /// </summary>
         protected override void WndProc(ref Message m)
         {
-            if (m.Msg == Native.WM_HOTKEY)
+            if (m.Msg == PInvoke.WM_HOTKEY)
             {
                 var keystroke = ((uint) m.LParam >> 16) & 0x0000FFFF;
                 var keystrokeModifier = (uint) m.LParam & 0x0000FFFF;
@@ -1129,7 +1133,7 @@ fav.PositionX.ToString()), out int favPositionX);
                 if (keystroke == MakeBorderlessHotKey && keystrokeModifier == MakeBorderlessHotKeyModifier)
                 {
                     // Find the currently-active window
-                    var hCurrentActiveWindow = Native.GetForegroundWindow();
+                    var hCurrentActiveWindow = PInvoke.GetForegroundWindow();
 
                     // Only if that window isn't Borderless Windows itself
                     if (hCurrentActiveWindow != Handle)
@@ -1169,17 +1173,16 @@ fav.PositionX.ToString()), out int favPositionX);
 
                 if (keystroke == MouseLockHotKey && keystrokeModifier == 0)
                 {
-                    var hWnd = Native.GetForegroundWindow();
+                    var hWnd = PInvoke.GetForegroundWindow();
 
                     // get size of clientarea
-                    var rect = new Native.Rect();
-                    Native.GetClientRect(hWnd, ref rect);
+                    PInvoke.GetClientRect(hWnd, out RECT rect);
 
                     // get top,left point of clientarea
-                    var p = new Native.POINTAPI {X = 0, Y = 0};
-                    Native.ClientToScreen(hWnd, ref p);
+                    var p = new Point {X = 0, Y = 0};
+                    PInvoke.ClientToScreen(hWnd, ref p);
 
-                    var clipRect = new Rectangle(p.X, p.Y, rect.Right - rect.Left, rect.Bottom - rect.Top);
+                    var clipRect = new Rectangle(p.X, p.Y, rect.right - rect.left, rect.bottom - rect.top);
 
                     Cursor.Clip = Cursor.Clip.Equals(clipRect) ? Rectangle.Empty : clipRect;
 

@@ -12,7 +12,7 @@ namespace BorderlessGaming.Windows.ViewModels
 {
     internal class DesktopAreaSelectorViewModel : INotifyPropertyChanged
     {
-        private DesktopAreaSelectorWPF Parent { get; }
+        private DesktopAreaSelectorWPF? Parent { get; }
         public DesktopAreaSelectorViewModel(DesktopAreaSelectorWPF parent)
         {
             this.Parent = parent;

@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using BorderlessGaming.Forms;
@@ -20,7 +21,10 @@ namespace BorderlessGaming
         [STAThread]
         static void Main()
         {
-            bool useWPF = true;
+            bool useWPF = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                && ((Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) is string parent
+                    && !File.Exists(Path.Combine(parent, ".wpf")))
+                        || false);
 
             if (useWPF)
             {

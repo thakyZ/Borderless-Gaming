@@ -4,8 +4,8 @@ namespace BorderlessGaming.Logic.Extensions
 {
     internal static class ProcessExtensions
     {
-
 #nullable enable
+
         public static Process? GetProcessById(int id)
         {
             try
@@ -17,6 +17,19 @@ namespace BorderlessGaming.Logic.Extensions
                 return null;
             }
         }
+
+        public static Process? GetProcessById(uint id)
+        {
+            try
+            {
+                return Process.GetProcessById((int)id);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
 #nullable disable
 
         private static string FindIndexedProcessName(int pid)

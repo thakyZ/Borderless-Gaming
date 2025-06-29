@@ -55,6 +55,23 @@ namespace BorderlessGaming.Logic.Misc
             return new Rectangle(nmin, new Size(nmax.X - nmin.X, nmax.Y - nmin.Y));
         }
 
+        public static System.Windows.Int32Rect GetContainingRectangle(System.Windows.Int32Rect a, System.Windows.Int32Rect b)
+        {
+            var amin = new Point(a.X, a.Y);
+            var amax = new Point(a.X + a.Width, a.Y + a.Height);
+            var bmin = new Point(b.X, b.Y);
+            var bmax = new Point(b.X + b.Width, b.Y + b.Height);
+            var nmin = new Point(0, 0);
+            var nmax = new Point(0, 0);
+
+            nmin.X = amin.X < bmin.X ? amin.X : bmin.X;
+            nmin.Y = amin.Y < bmin.Y ? amin.Y : bmin.Y;
+            nmax.X = amax.X > bmax.X ? amax.X : bmax.X;
+            nmax.Y = amax.Y > bmax.Y ? amax.Y : bmax.Y;
+
+            return new System.Windows.Int32Rect(nmin.X, nmin.Y, nmax.X - nmin.X, nmax.Y - nmin.Y);
+        }
+
 
         public static void GotoSite(string url)
         {

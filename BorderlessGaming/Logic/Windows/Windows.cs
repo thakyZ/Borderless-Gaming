@@ -5,6 +5,10 @@ using System.Drawing;
 using BorderlessGaming.Logic.Extensions;
 using BorderlessGaming.Logic.Models;
 
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.WindowsAndMessaging;
+
 namespace BorderlessGaming.Logic.Windows
 {
     public class Windows
@@ -19,18 +23,18 @@ namespace BorderlessGaming.Logic.Windows
         /// <param name="windowPtrSet">A set of current window ptrs</param>
         public void QueryProcessesWithWindows(Action<ProcessDetails> callback, HashSet<long> windowPtrSet)
         {
-            var ptrList = new List<IntPtr>();
+            var hWndList = new List<HWND>();
 
-            bool Del(IntPtr hwnd, uint lParam)
+            BOOL Del(HWND hwnd, LPARAM lParam)
             {
-                return GetMainWindowForProcess_EnumWindows(ptrList, hwnd, lParam);
+                return GetMainWindowForProcess_EnumWindows(hWndList, hwnd, lParam);
             }
 
-            Native.EnumWindows(Del, 0);
-            Native.EnumWindows(Del, 1);
-            foreach (var ptr in ptrList)
+            PInvoke.EnumWindows(Del, 0);
+            PInvoke.EnumWindows(Del, 1);
+            foreach (var hWnd in hWndList)
             {
-                if (Native.GetWindowRect(ptr, out Native.Rect rect))
+                if (PInvoke.GetWindowRect(hWnd, out RECT rect))
                 {
                     if (((Rectangle)rect).IsEmpty)
                     {
@@ -38,54 +42,63 @@ namespace BorderlessGaming.Logic.Windows
                     }
                     //check if we already have this window in the list so we can avoid calling
                     //GetWindowThreadProcessId(its costly)
-                    if (windowPtrSet.Contains(ptr.ToInt64()))
+                    if (windowPtrSet.Contains(hWnd))
                     {
                         continue;
                     }
-                    uint processId;
-                    Native.GetWindowThreadProcessId(ptr, out processId);
-                    var process = ProcessExtensions.GetProcessById((int)processId);
-                    if (process is null)
+                    try
                     {
-                        continue;
+                        unsafe
+                        {
+                            uint processId = default(uint);
+                            PInvoke.GetWindowThreadProcessId(hWnd, &processId);
+                            var process = ProcessExtensions.GetProcessById(processId);
+                            if (process is null)
+                            {
+                                continue;
+                            }
+                            callback(new ProcessDetails(process, hWnd)
+                            {
+                                Manageable = true
+                            });
+                        }
                     }
-                    callback(new ProcessDetails(process, ptr)
+                    catch (Exception exception)
                     {
-                        Manageable = true
-                    });
+                        // TODO: Log error here...
+                    }
                 }
             }
         }
 
-        private static bool GetMainWindowForProcess_EnumWindows(List<IntPtr> ptrList, IntPtr hWndEnumerated,
-            uint lParam)
+        private static bool GetMainWindowForProcess_EnumWindows(List<HWND> hwndList, HWND hWndEnumerated, LPARAM lParam)
         {
-            var styleCurrentWindowStandard = Native.GetWindowLong(hWndEnumerated, WindowLongIndex.Style);
+            var styleCurrentWindowStandard = Native.GetWindowLong32(hWndEnumerated, WINDOW_LONG_PTR_INDEX.GWL_STYLE);
 
-            switch (lParam)
+            switch (lParam.Value)
             {
                 case 0:
-                    if (Native.IsWindowVisible(hWndEnumerated))
+                    if (PInvoke.IsWindowVisible(hWndEnumerated))
                     {
                         if
                         (
-                            (styleCurrentWindowStandard & WindowStyleFlags.Caption) > 0
+                            (styleCurrentWindowStandard & WINDOW_STYLE.WS_CAPTION) > 0
                             && (
-                                (styleCurrentWindowStandard & WindowStyleFlags.Border) > 0
-                                || (styleCurrentWindowStandard & WindowStyleFlags.ThickFrame) > 0
+                                (styleCurrentWindowStandard & WINDOW_STYLE.WS_BORDER) > 0
+                                || (styleCurrentWindowStandard & WINDOW_STYLE.WS_THICKFRAME) > 0
                             )
                         )
                         {
-                            ptrList.Add(hWndEnumerated);
+                            hwndList.Add(hWndEnumerated);
                         }
                     }
                     break;
                 case 1:
-                    if (Native.IsWindowVisible(hWndEnumerated))
+                    if (PInvoke.IsWindowVisible(hWndEnumerated))
                     {
                         if ((uint)styleCurrentWindowStandard != 0)
                         {
-                            ptrList.Add(hWndEnumerated);
+                            hwndList.Add(hWndEnumerated);
                         }
                     }
                     break;

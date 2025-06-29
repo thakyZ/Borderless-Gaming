@@ -20,41 +20,96 @@ namespace BorderlessGaming.Windows
     /// <summary>
     /// Interaction logic for InputSizeWPF.xaml
     /// </summary>
-    public partial class InputSizeWPF : Window
+    public partial class InputSizeWPF : Window, IDisposable
     {
-        private InputSizeViewModel ViewModel => (this.DataContext as InputSizeViewModel)!;
-        public InputSizeWPF()
+        internal InputSizeViewModel ViewModel {
+            get => ((this.DataContext ?? new InputSizeViewModel(this)) as InputSizeViewModel)!;
+            set => this.DataContext = value;
+        }
+
+        public InputSizeWPF(bool keepRatio, Point? windowSize)
         {
             InitializeComponent();
-            this.DataContext = new InputSizeViewModel(this);
         }
 
-        private void PositionXSpinner_OnValueChanged(object? sender, RoutedPropertyChangedEventArgs<object> @event)
+        public new MessageBoxResult ShowDialog()
         {
-            if (@event.NewValue is int @int) {
-                ViewModel.PositionX = @int;
-            }
+            return MessageBoxResult.None;
         }
 
-        private void PositionYSpinner_OnValueChanged(object? sender, RoutedPropertyChangedEventArgs<object> @event)
+        public void SetTitle(string? title)
         {
-            if (@event.NewValue is int @int) {
-                ViewModel.PositionY = @int;
-            }
+            this.ViewModel.Title = title;
         }
 
-        private void SizeWSpinner_OnValueChanged(object? sender, RoutedPropertyChangedEventArgs<object> @event)
+        public void SetInstructionsX(string instructionsX)
         {
-            if (@event.NewValue is int @int) {
-                ViewModel.SizeW = @int;
-            }
+            this.ViewModel.PositionXLabel = instructionsX;
         }
 
-        private void SizeHSpinner_OnValueChanged(object? sender, RoutedPropertyChangedEventArgs<object> @event)
+        public void SetInstructionsY(string instructionsY)
         {
-            if (@event.NewValue is int @int) {
-                ViewModel.SizeH = @int;
-            }
+            this.ViewModel.PositionYLabel = instructionsY;
+        }
+
+        public void SetInstructionsW(string instructionsW)
+        {
+            this.ViewModel.SizeWLabel = instructionsW;
+        }
+
+        public void SetInstructionsH(string instructionsH)
+        {
+            this.ViewModel.SizeHLabel = instructionsH;
+        }
+
+        public void SetInputX(int positionX)
+        {
+            this.ViewModel.PositionX = positionX;
+        }
+
+        public void SetInputY(int positionY)
+        {
+            this.ViewModel.PositionY = positionY;
+        }
+
+        public void SetInputW(int sizeW)
+        {
+            this.ViewModel.SizeW = sizeW;
+        }
+
+        public void SetInputH(int sizeH)
+        {
+            this.ViewModel.SizeH = sizeH;
+        }
+
+        public (int X, int Y, int Width, int Height) GetCurrentValue()
+        {
+            return (this.ViewModel.PositionX, this.ViewModel.PositionY, this.ViewModel.SizeH, this.ViewModel.SizeH);
+        }
+
+        public void Dispose()
+        {
+            base.Close();
+        }
+
+        private void PositionXSpinner_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+        {
+
+        }
+
+        private void SizeWSpinner_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+        {
+
+        }
+
+        private void PositionYSpinner_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+        {
+
+        }
+
+        private void SizeHSpinner_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+        {
+
         }
     }
 }

@@ -1,21 +1,17 @@
 ﻿#nullable enable
 using System;
-using System.Windows;
-using System.Windows.Controls;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Input;
 
-namespace BorderlessGaming.Windows.ViewModels;
-
-/// <summary>
-/// The implementation of the <see cref="ICommand" /> class with generic type <typeparamref name="TSource" />.
-/// </summary>
-/// <typeparam name="TSource">The type to inherit this class from.</typeparam>
-/// <seealso cref="ICommand"/>
-internal sealed class CommandImpl<TSource> : ICommand {
+namespace BorderlessGaming.Windows.Components;
+internal sealed class AsyncCommandImpl<TSource> : ICommand {
   /// <summary>
   /// The internal command to execute.
   /// </summary>
-  private readonly Action<TSource?> _execute;
+  private readonly Func<TSource?, Task> _execute;
 
   /// <summary>
   /// The internal command to test if we can execute.
@@ -26,14 +22,14 @@ internal sealed class CommandImpl<TSource> : ICommand {
   /// Initializes a new instance of the <see cref="CommandImpl{T}"/> class
   /// </summary>
   /// <param name="execute">The execute</param>
-  internal CommandImpl(Action<TSource?> execute) : this(execute, (object? _) => true) { }
+  internal AsyncCommandImpl(Func<TSource?, Task> execute) : this(execute, (object? _) => true) { }
 
   /// <summary>
   /// Initializes a new instance of the <see cref="CommandImpl{T}"/> class
   /// </summary>
   /// <param name="execute">The execute</param>
   /// <param name="canExecute">The can execute</param>
-  private CommandImpl(Action<TSource?> execute, Predicate<object?> canExecute) {
+  private AsyncCommandImpl(Func<TSource?, Task> execute, Predicate<object?> canExecute) {
     this._execute = execute;
     this._canExecute = canExecute;
   }
@@ -59,6 +55,9 @@ internal sealed class CommandImpl<TSource> : ICommand {
   /// </summary>
   /// <param name="parameter">The parameter</param>
   public void Execute(object? parameter)
+    => this._execute((TSource?)parameter);
+
+  public Task ExecuteAsync(object? parameter)
     => this._execute((TSource?)parameter);
 
   /// <summary>

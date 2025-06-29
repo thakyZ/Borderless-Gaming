@@ -20,13 +20,37 @@ namespace BorderlessGaming.Windows
     /// <summary>
     /// Interaction logic for DesktopAreaSelectorWPF.xaml
     /// </summary>
-    public partial class DesktopAreaSelectorWPF : Window
+    public partial class DesktopAreaSelectorWPF : Window, IDisposable
     {
-        private DesktopAreaSelectorViewModel ViewModel => (this.DataContext as DesktopAreaSelectorViewModel)!;
-        public DesktopAreaSelectorWPF()
+        internal DesktopAreaSelectorViewModel ViewModel {
+            get => ((this.DataContext ?? new DesktopAreaSelectorViewModel(this)) as DesktopAreaSelectorViewModel)!;
+            set => this.DataContext = value;
+        }
+
+        internal Point? WindowSize { get; set; }
+        internal bool Unknown { get; set; }
+        
+        public DesktopAreaSelectorWPF() : this(false, null) { }
+        public DesktopAreaSelectorWPF(bool unknown, Point? windowSize)
         {
-            InitializeComponent();
-            this.DataContext = new DesktopAreaSelectorViewModel(this);
+            this.InitializeComponent();
+            this.Unknown = unknown;
+            this.WindowSize = windowSize;
+        }
+
+        public new MessageBoxResult ShowDialog()
+        {
+            return MessageBoxResult.None;
+        }
+
+        public Int32Rect GetCurrentValue()
+        {
+            return new Int32Rect(this.ViewModel.PositionX, this.ViewModel.PositionY, this.ViewModel.SizeH, this.ViewModel.SizeH);
+        }
+
+        public void Dispose()
+        {
+            base.Close();
         }
     }
 }

@@ -8,8 +8,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Forms;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 
@@ -18,7 +18,10 @@ using BorderlessGaming.Logic.Core;
 using BorderlessGaming.Logic.Misc;
 using BorderlessGaming.Logic.Models;
 using BorderlessGaming.Logic.NekoBoiNick;
+using BorderlessGaming.Logic.Windows;
+using Manipulation = BorderlessGaming.Logic.Windows.Manipulation;
 using BorderlessGaming.Properties;
+using BorderlessGaming.Windows.Components;
 
 namespace BorderlessGaming.Windows.ViewModels
 {
@@ -29,34 +32,33 @@ namespace BorderlessGaming.Windows.ViewModels
         /// <summary>
         /// The Borderless Toggle hotKey
         /// </summary>
-        private int MakeBorderlessHotKey { get; } = (int) Key.F6;
+        internal uint MakeBorderlessHotKey { get; } = (uint) Key.F6;
 
         /// <summary>
         /// The Borderless Toggle hotKey modifier
         /// </summary>
-        private int MakeBorderlessHotKeyModifier { get; } = (int) Key.LWin;
+        internal int MakeBorderlessHotKeyModifier { get; } = (int) Key.LWin;
 
         /// <summary>
         /// The Mouse Lock hotKey
         /// </summary>
-        private int MouseLockHotKey { get; } = (int) Key.Scroll;
+        internal uint MouseLockHotKey { get; } = (uint) Key.Scroll;
 
         /// <summary>
         /// The Mouse Hide hotkey
         /// </summary>
-        private int MouseHideHotKey { get; } = (int) Key.Scroll;
+        internal uint MouseHideHotKey { get; } = (uint) Key.Scroll;
 
         /// <summary>
         /// The Mouse Hide hotkey modifier
         /// </summary>
-        private int MouseHideHotKeyModifier { get; } = (int) Key.LWin;
+        internal int MouseHideHotKeyModifier { get; } = (int) Key.LWin;
 
         public MainWindowViewModel(MainWindowWPF parent)
         {
-            this.Watcher = new ProcessWatcher(this);
             this.Parent = parent;
-            this.FavoiteButtonIcon = Resources.add.GetBitmapSource();
-            this.UnfavoiteButtonIcon = Resources.remove.GetBitmapSource();
+            this.FavoriteButtonIcon = Resources.add.GetBitmapSource();
+            this.UnfavoriteButtonIcon = Resources.remove.GetBitmapSource();
             this.MakeBordelessButtonIcon = Resources.borderless.GetBitmapSource();
             this.RestoreWindowButtonIcon = Resources.bordered.GetBitmapSource();
             this.RunOnWindowsStartupMenuItemClicked = new CommandImpl<bool>(OnRunOnWindowsStartupMenuItemClicked);
@@ -80,11 +82,12 @@ namespace BorderlessGaming.Windows.ViewModels
             this.ReportABugMenuItemClicked = new CommandImpl(OnReportABugMenuItemClicked);
             this.SupportUsMenuItemClicked = new CommandImpl(OnSupportUsMenuItemClicked);
             this.AboutMenuItemClicked = new CommandImpl(OnAboutMenuItemClicked);
-            this.FavoriteButtonClicked = new AsyncCommandImpl<string>(OnFavoriteButtonClicked);
-            this.UnfavoriteButtonClicked = new AsyncCommandImpl<string>(OnUnfavoriteButtonClicked);
+            this.FavoriteButtonClicked = new CommandImpl<Favorite>(OnFavoriteButtonClicked);
+            this.UnfavoriteButtonClicked = new CommandImpl<Favorite>(OnUnfavoriteButtonClicked);
             this.MakeBordelessButtonClicked = new CommandImpl<string>(OnMakeBordelessButtonClicked);
             this.RestoreWindowButtonClicked = new CommandImpl<string>(OnRestoreWindowButtonClicked);
             this.SetLanguageButonClicked = new CommandImpl<string>(OnSetLanguageButtonClicked);
+            this.TrayIconDoubleClickCommand = new CommandImpl(TrayIconDoubleClicked);
             LanguageManager.Setup(this.LanguagesMenuItemContextMenuItems, this.SetLanguageButonClicked);
         }
 
@@ -111,51 +114,190 @@ namespace BorderlessGaming.Windows.ViewModels
 
         #region Localization Bindings
 
-        public string Title { get; } = "Borderless Gaming";
-        public string OptionsButtonLabel { get; } = "_Options";
-        public string ToolsButtonLabel { get; } = "_Tools";
-        public string HelpButtonLabel { get; } = "_Help";
-        public string RunOnWindowsStartupMenuItemLabel { get; } = "Run On Windows Startup";
-        public string LanguagesMenuItemLabel { get; } = "Languages";
-        public string CheckForUpdatesMenuItemLabel { get; } = "Check For Updates";
-        public string UseGlobalHotkeyMenuItemLabel { get; } = "Use Global Hotkey";
-        public string UseMouseLockHotkeyMenuItemLabel { get; } = "Use Mouse Lock Hotkey";
-        public string UseMouseHideHotkeyMenuItemLabel { get; } = "Use Mouse Hide Hotkey";
-        public string StartMinimizedToTrayMenuItemLabel { get; } = "Start Minimized To Tray";
-        public string CloseToTrayMenuItemLabel { get; } = "Close To Tray";
-        public string HideBalloonTipsMenuItemLabel { get; } = "Hide Balloon Tips";
-        public string UseSlowerWindowDetectionMenuItemLabel { get; } = "Use Slower Window Detection";
-        public string ViewFullProcessDetailsMenuItemLabel { get; } = "View Full Process Details";
-        public string ExitMenuItemLabel { get; } = "Exit";
-        public string PauseAutomaticProcessingMenuItemLabel { get; } = "Pause Automatic Processing";
-        public string OpenDataFolderMenuItemLabel { get; } = "Open Data Folder";
-        public string ToggleMouseCursorVisibilityMenuItemLabel { get; } = "Toggle Mouse Cursor Visibility";
-        public string ToggleWindowsTaskbarVisibilityMenuItemLabel { get; } = "Toggle Windows Taskbar Visibility";
-        public string FullApplicationRefreshMenuItemLabel { get; } = "Full Application Refresh";
-        public string UsageGuideMenuItemLabel { get; } = "Usage Guide";
-        public string RegexReferenceMenuItemLabel { get; } = "Regex Reference";
-        public string ReportABugMenuItemLabel { get; } = "Report A Bug";
-        public string SupportUsMenuItemLabel { get; } = "Support Us";
-        public string AboutMenuItemLabel { get; } = "About";
-        public string ApplicationsLabel { get; } = "Applications";
-        public string FavoritesAutomaticLabel { get; } = "Favorites (Automatic)";
+        private string? title;
+        public string? Title { // "Borderless Gaming";
+            get => title;
+            set => this.NotifyPropertyChanged<string?>(ref title, value);
+        }
+
+        private string? optionsButtonLabel;
+        public string? OptionsButtonLabel { // "_Options";
+            get => optionsButtonLabel;
+            set => this.NotifyPropertyChanged<string?>(ref optionsButtonLabel, value);
+        }
+
+        private string? toolsButtonLabel;
+        public string? ToolsButtonLabel { // "_Tools";
+            get => toolsButtonLabel;
+            set => this.NotifyPropertyChanged<string?>(ref toolsButtonLabel, value);
+        }
+
+        private string? helpButtonLabel;
+        public string? HelpButtonLabel { // "_Help";
+            get => helpButtonLabel;
+            set => this.NotifyPropertyChanged<string?>(ref helpButtonLabel, value);
+        }
+
+        private string? runOnWindowsStartupMenuItemLabel;
+        public string? RunOnWindowsStartupMenuItemLabel { // "Run On Windows Startup";
+            get => runOnWindowsStartupMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref runOnWindowsStartupMenuItemLabel, value);
+        }
+
+        private string? languagesMenuItemLabel;
+        public string? LanguagesMenuItemLabel { // "Languages";
+            get => languagesMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref languagesMenuItemLabel, value);
+        }
+
+        private string? checkForUpdatesMenuItemLabel;
+        public string? CheckForUpdatesMenuItemLabel { // "Check For Updates";
+            get => checkForUpdatesMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref checkForUpdatesMenuItemLabel, value);
+        }
+
+        private string? useGlobalHotkeyMenuItemLabel;
+        public string? UseGlobalHotkeyMenuItemLabel { // "Use Global Hotkey";
+            get => useGlobalHotkeyMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref useGlobalHotkeyMenuItemLabel, value);
+        }
+
+        private string? useMouseLockHotkeyMenuItemLabel;
+        public string? UseMouseLockHotkeyMenuItemLabel { // "Use Mouse Lock Hotkey";
+            get => useMouseLockHotkeyMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref useMouseLockHotkeyMenuItemLabel, value);
+        }
+
+        private string? useMouseHideHotkeyMenuItemLabel;
+        public string? UseMouseHideHotkeyMenuItemLabel { // "Use Mouse Hide Hotkey";
+            get => useMouseHideHotkeyMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref useMouseHideHotkeyMenuItemLabel, value);
+        }
+
+        private string? startMinimizedToTrayMenuItemLabel;
+        public string? StartMinimizedToTrayMenuItemLabel { // "Start Minimized To Tray";
+            get => startMinimizedToTrayMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref startMinimizedToTrayMenuItemLabel, value);
+        }
+
+        private string? closeToTrayMenuItemLabel;
+        public string? CloseToTrayMenuItemLabel { // "Close To Tray";
+            get => closeToTrayMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref closeToTrayMenuItemLabel, value);
+        }
+
+        private string? hideBalloonTipsMenuItemLabel;
+        public string? HideBalloonTipsMenuItemLabel { // "Hide Balloon Tips";
+            get => hideBalloonTipsMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref hideBalloonTipsMenuItemLabel, value);
+        }
+
+        private string? useSlowerWindowDetectionMenuItemLabel;
+        public string? UseSlowerWindowDetectionMenuItemLabel { // "Use Slower Window Detection";
+            get => useSlowerWindowDetectionMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref useSlowerWindowDetectionMenuItemLabel, value);
+        }
+
+        private string? viewFullProcessDetailsMenuItemLabel;
+        public string? ViewFullProcessDetailsMenuItemLabel { // "View Full Process Details";
+            get => viewFullProcessDetailsMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref viewFullProcessDetailsMenuItemLabel, value);
+        }
+
+        private string? exitMenuItemLabel;
+        public string? ExitMenuItemLabel { // "Exit";
+            get => exitMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref exitMenuItemLabel, value);
+        }
+
+        private string? pauseAutomaticProcessingMenuItemLabel;
+        public string? PauseAutomaticProcessingMenuItemLabel { // "Pause Automatic Processing";
+            get => pauseAutomaticProcessingMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref pauseAutomaticProcessingMenuItemLabel, value);
+        }
+
+        private string? openDataFolderMenuItemLabel;
+        public string? OpenDataFolderMenuItemLabel { // "Open Data Folder";
+            get => openDataFolderMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref openDataFolderMenuItemLabel, value);
+        }
+
+        private string? toggleMouseCursorVisibilityMenuItemLabel;
+        public string? ToggleMouseCursorVisibilityMenuItemLabel { // "Toggle Mouse Cursor Visibility";
+            get => toggleMouseCursorVisibilityMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref toggleMouseCursorVisibilityMenuItemLabel, value);
+        }
+
+        private string? toggleWindowsTaskbarVisibilityMenuItemLabel;
+        public string? ToggleWindowsTaskbarVisibilityMenuItemLabel { // "Toggle Windows Taskbar Visibility";
+            get => toggleWindowsTaskbarVisibilityMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref toggleWindowsTaskbarVisibilityMenuItemLabel, value);
+        }
+
+        private string? fullApplicationRefreshMenuItemLabel;
+        public string? FullApplicationRefreshMenuItemLabel { // "Full Application Refresh";
+            get => fullApplicationRefreshMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref fullApplicationRefreshMenuItemLabel, value);
+        }
+
+        private string? usageGuideMenuItemLabel;
+        public string? UsageGuideMenuItemLabel { // "Usage Guide";
+            get => usageGuideMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref usageGuideMenuItemLabel, value);
+        }
+
+        private string? regexReferenceMenuItemLabel;
+        public string? RegexReferenceMenuItemLabel { // "Regex Reference";
+            get => regexReferenceMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref regexReferenceMenuItemLabel, value);
+        }
+
+        private string? reportABugMenuItemLabel;
+        public string? ReportABugMenuItemLabel { // "Report A Bug";
+            get => reportABugMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref reportABugMenuItemLabel, value);
+        }
+
+        private string? supportUsMenuItemLabel;
+        public string? SupportUsMenuItemLabel { // "Support Us";
+            get => supportUsMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref supportUsMenuItemLabel, value);
+        }
+
+        private string? aboutMenuItemLabel;
+        public string? AboutMenuItemLabel { // "About";
+            get => aboutMenuItemLabel;
+            set => this.NotifyPropertyChanged<string?>(ref aboutMenuItemLabel, value);
+        }
+
+        private string? applicationsLabel;
+        public string? ApplicationsLabel { // "Applications";
+            get => applicationsLabel;
+            set => this.NotifyPropertyChanged<string?>(ref applicationsLabel, value);
+        }
+
+        private string? favoritesAutomaticLabel;
+        public string? FavoritesAutomaticLabel { // "Favorites (Automatic)";
+            get => favoritesAutomaticLabel;
+            set => this.NotifyPropertyChanged<string?>(ref favoritesAutomaticLabel, value);
+        }
 
         #endregion Localization Bindings
 
         #region Icon Bindings
 
-        private BitmapSource? favoiteButtonIcon;
-        public BitmapSource? FavoiteButtonIcon
+        private BitmapSource? favoriteButtonIcon;
+        public BitmapSource? FavoriteButtonIcon
         {
-            get => favoiteButtonIcon;
-            set => NotifyPropertyChanged<BitmapSource?>(ref favoiteButtonIcon, value);
+            get => favoriteButtonIcon;
+            set => NotifyPropertyChanged<BitmapSource?>(ref favoriteButtonIcon, value);
         }
 
-        private BitmapSource? unfavoiteButtonIcon;
-        public BitmapSource? UnfavoiteButtonIcon
+        private BitmapSource? unfavoriteButtonIcon;
+        public BitmapSource? UnfavoriteButtonIcon
         {
-            get => unfavoiteButtonIcon;
-            set => NotifyPropertyChanged<BitmapSource?>(ref unfavoiteButtonIcon, value);
+            get => unfavoriteButtonIcon;
+            set => NotifyPropertyChanged<BitmapSource?>(ref unfavoriteButtonIcon, value);
         }
 
         private BitmapSource? makeBordelessButtonIcon;
@@ -183,18 +325,43 @@ namespace BorderlessGaming.Windows.ViewModels
             set => NotifyPropertyChanged<List<MenuItem>>(ref languagesMenuItemContextMenuItems, value);
         }
 
-        private List<ListBoxItem> applicationsListBoxItemsSource = [];
-        public List<ListBoxItem> ApplicationsListBoxItemsSource
+        private ProcessDetails? applicationsListBoxSelectedItem;
+        public ProcessDetails? ApplicationsListBoxSelectedItem
         {
-            get => applicationsListBoxItemsSource;
-            set => NotifyPropertyChanged<List<ListBoxItem>>(ref applicationsListBoxItemsSource, value);
+            get => applicationsListBoxSelectedItem;
+            set => NotifyPropertyChanged<ProcessDetails?>(ref applicationsListBoxSelectedItem, value);
         }
 
-        private List<ListBoxItem> favoriteListBoxItemsSource = [];
-        public List<ListBoxItem> FavoriteListBoxItemsSource
+        private List<ProcessDetails> applicationsListBoxItemsSource = [];
+        public List<ProcessDetails> ApplicationsListBoxItemsSource
+        {
+            get => applicationsListBoxItemsSource;
+            set => NotifyPropertyChanged<List<ProcessDetails>>(ref applicationsListBoxItemsSource, value);
+        }
+
+        private Favorite? favoriteListBoxSelectedItem;
+        public Favorite? FavoriteListBoxSelectedItem
+        {
+            get => favoriteListBoxSelectedItem;
+            set => NotifyPropertyChanged<Favorite?>(ref favoriteListBoxSelectedItem, value);
+        }
+
+        private List<Favorite> favoriteListBoxItemsSource = [];
+        public List<Favorite> FavoriteListBoxItemsSource
         {
             get => favoriteListBoxItemsSource;
-            set => NotifyPropertyChanged<List<ListBoxItem>>(ref favoriteListBoxItemsSource, value);
+            set => NotifyPropertyChanged<List<Favorite>>(ref favoriteListBoxItemsSource, value);
+        }
+
+        private List<MenuItem> favScreenDropDownItemsSource = [];
+        public List<MenuItem> FavScreenDropDownItemsSource
+        {
+            get => favScreenDropDownItemsSource;
+            set => NotifyPropertyChanged<List<MenuItem>>(ref favScreenDropDownItemsSource, value);
+        }
+        public bool FavScreenHasDropDownItems
+        {
+            get => this.FavScreenDropDownItemsSource.Any();
         }
 
         private string statusLabel = "Loading...";
@@ -202,6 +369,269 @@ namespace BorderlessGaming.Windows.ViewModels
         {
             get => statusLabel;
             set => NotifyPropertyChanged<string>(ref statusLabel, value);
+        }
+
+        private bool makeBorderlessButtonIsEnabled;
+        public bool MakeBorderlessButtonIsEnabled
+        {
+            get => makeBorderlessButtonIsEnabled;
+            set => NotifyPropertyChanged<bool>(ref makeBorderlessButtonIsEnabled, value);
+        }
+
+        private bool restoreWindowIsEnabled;
+        public bool RestoreWindowIsEnabled
+        {
+            get => restoreWindowIsEnabled;
+            set => NotifyPropertyChanged<bool>(ref restoreWindowIsEnabled, value);
+        }
+
+        private bool favoriteButtonIsEnabled;
+        public bool FavoriteButtonIsEnabled
+        {
+            get => favoriteButtonIsEnabled;
+            set => NotifyPropertyChanged<bool>(ref favoriteButtonIsEnabled, value);
+        }
+
+        private bool unfavoriteButtonIsEnabled;
+        public bool UnfavoriteButtonIsEnabled
+        {
+            get => unfavoriteButtonIsEnabled;
+            set => NotifyPropertyChanged<bool>(ref unfavoriteButtonIsEnabled, value);
+        }
+
+        private bool muteInBackgroundIsChecked;
+        public bool MuteInBackgroundIsChecked
+        {
+            get => muteInBackgroundIsChecked;
+            set => NotifyPropertyChanged<bool>(ref muteInBackgroundIsChecked, value);
+        }
+
+        private bool removeMenusIsChecked;
+        public bool RemoveMenusIsChecked
+        {
+            get => removeMenusIsChecked;
+            set => NotifyPropertyChanged<bool>(ref removeMenusIsChecked, value);
+        }
+
+        private bool alwaysOnTopIsChecked;
+        public bool AlwaysOnTopIsChecked
+        {
+            get => alwaysOnTopIsChecked;
+            set => NotifyPropertyChanged<bool>(ref alwaysOnTopIsChecked, value);
+        }
+
+        private bool autoMaximizeIsChecked;
+        public bool AutoMaximizeIsChecked
+        {
+            get => autoMaximizeIsChecked;
+            set => NotifyPropertyChanged<bool>(ref autoMaximizeIsChecked, value);
+        }
+
+        private bool hideMouseCursorIsChecked;
+        public bool HideMouseCursorIsChecked
+        {
+            get => hideMouseCursorIsChecked;
+            set => NotifyPropertyChanged<bool>(ref hideMouseCursorIsChecked, value);
+        }
+
+        private bool hideWindowsTaskbarIsChecked;
+        public bool HideWindowsTaskbarIsChecked
+        {
+            get => hideWindowsTaskbarIsChecked;
+            set => NotifyPropertyChanged<bool>(ref hideWindowsTaskbarIsChecked, value);
+        }
+
+        private bool favScreenIsVisible;
+        public bool FavScreenIsVisible
+        {
+            get => favScreenIsVisible;
+            set => NotifyPropertyChanged<bool>(ref favScreenIsVisible, value);
+        }
+
+        private bool setWindowSizeKeepRatioIsChecked;
+        public bool SetWindowSizeKeepRatioIsChecked
+        {
+            get => setWindowSizeKeepRatioIsChecked;
+            set => NotifyPropertyChanged<bool>(ref setWindowSizeKeepRatioIsChecked, value);
+        }
+
+        private bool editRegexIsVisible;
+        public bool EditRegexIsVisible
+        {
+            get => editRegexIsVisible;
+            set => NotifyPropertyChanged<bool>(ref editRegexIsVisible, value);
+        }
+
+        private bool editRegexIsEnabled;
+        public bool EditRegexIsEnabled
+        {
+            get => editRegexIsEnabled;
+            set => NotifyPropertyChanged<bool>(ref editRegexIsEnabled, value);
+        }
+
+        private bool noSizeChangeIsChecked;
+        public bool NoSizeChangeIsChecked
+        {
+            get => noSizeChangeIsChecked;
+            set => NotifyPropertyChanged<bool>(ref noSizeChangeIsChecked, value);
+        }
+
+        private bool setWindowSizeIsChecked;
+        public bool SetWindowSizeIsChecked
+        {
+            get => setWindowSizeIsChecked;
+            set => NotifyPropertyChanged<bool>(ref setWindowSizeIsChecked, value);
+        }
+
+        private bool setWindowSizeIsEnabled;
+        public bool SetWindowSizeIsEnabled
+        {
+            get => setWindowSizeIsEnabled;
+            set => NotifyPropertyChanged<bool>(ref setWindowSizeIsEnabled, value);
+        }
+
+        private bool adjustWindowBoundsIsEnabled;
+        public bool AdjustWindowBoundsIsEnabled
+        {
+            get => adjustWindowBoundsIsEnabled;
+            set => NotifyPropertyChanged<bool>(ref adjustWindowBoundsIsEnabled, value);
+        }
+
+        private bool autoMaximizeIsEnabled;
+        public bool AutoMaximizeIsEnabled
+        {
+            get => autoMaximizeIsEnabled;
+            set => NotifyPropertyChanged<bool>(ref autoMaximizeIsEnabled, value);
+        }
+
+        private bool fullScreenIsChecked;
+        public bool FullScreenIsChecked
+        {
+            get => fullScreenIsChecked;
+            set => NotifyPropertyChanged<bool>(ref fullScreenIsChecked, value);
+        }
+
+        private bool addToFavsIsEnabled;
+        public bool AddToFavsIsEnabled
+        {
+            get => addToFavsIsEnabled;
+            set => NotifyPropertyChanged<bool>(ref addToFavsIsEnabled, value);
+        }
+
+        private bool borderlessOnIsVisible;
+        public bool BorderlessOnIsVisible
+        {
+            get => borderlessOnIsVisible;
+            set => NotifyPropertyChanged<bool>(ref borderlessOnIsVisible, value);
+        }
+
+        private List<MenuItem> borderlessOnDropDownItemsSource = [];
+        public List<MenuItem> BorderlessOnDropDownItemsSource
+        {
+            get => borderlessOnDropDownItemsSource;
+            set => NotifyPropertyChanged<List<MenuItem>>(ref borderlessOnDropDownItemsSource, value);
+        }
+        public bool BorderlessOnHasDropDownItems
+        {
+            get => borderlessOnDropDownItemsSource.Any();
+        }
+
+        private List<MenuItem> menuItemDropDownItemsSource = [];
+        public List<MenuItem> MenuItemDropDownItemsSource
+        {
+            get => menuItemDropDownItemsSource;
+            set => NotifyPropertyChanged<List<MenuItem>>(ref menuItemDropDownItemsSource, value);
+        }
+
+        private bool delayBorderlessIsChecked;
+        public bool DelayBorderlessIsChecked
+        {
+            get => delayBorderlessIsChecked;
+            set => NotifyPropertyChanged<bool>(ref delayBorderlessIsChecked, value);
+        }
+
+        private bool runOnStartupIsChecked;
+        public bool RunOnStartupIsChecked
+        {
+            get => runOnStartupIsChecked;
+            set => NotifyPropertyChanged<bool>(ref runOnStartupIsChecked, value);
+        }
+
+        private bool globalHotkeyIsChecked;
+        public bool GlobalHotkeyIsChecked
+        {
+            get => globalHotkeyIsChecked;
+            set => NotifyPropertyChanged<bool>(ref globalHotkeyIsChecked, value);
+        }
+
+        private bool checkForUpdatesIsChecked;
+        public bool CheckForUpdatesIsChecked
+        {
+            get => checkForUpdatesIsChecked;
+            set => NotifyPropertyChanged<bool>(ref checkForUpdatesIsChecked, value);
+        }
+
+        private bool mouseLockIsChecked;
+        public bool MouseLockIsChecked
+        {
+            get => mouseLockIsChecked;
+            set => NotifyPropertyChanged<bool>(ref mouseLockIsChecked, value);
+        }
+
+        private bool mouseHideIsChecked;
+        public bool MouseHideIsChecked
+        {
+            get => mouseHideIsChecked;
+            set => NotifyPropertyChanged<bool>(ref mouseHideIsChecked, value);
+        }
+
+        private bool minimizedToTrayIsChecked;
+        public bool MinimizedToTrayIsChecked
+        {
+            get => minimizedToTrayIsChecked;
+            set => NotifyPropertyChanged<bool>(ref minimizedToTrayIsChecked, value);
+        }
+
+        private bool hideBalloonTipsIsChecked;
+        public bool HideBalloonTipsIsChecked
+        {
+            get => hideBalloonTipsIsChecked;
+            set => NotifyPropertyChanged<bool>(ref hideBalloonTipsIsChecked, value);
+        }
+
+        private bool closeToTrayIsChecked;
+        public bool CloseToTrayIsChecked
+        {
+            get => closeToTrayIsChecked;
+            set => NotifyPropertyChanged<bool>(ref closeToTrayIsChecked, value);
+        }
+
+        private bool viewFullProcessDetailsIsChecked;
+        public bool ViewFullProcessDetailsIsChecked
+        {
+            get => viewFullProcessDetailsIsChecked;
+            set => NotifyPropertyChanged<bool>(ref viewFullProcessDetailsIsChecked, value);
+        }
+
+        private bool slowWindowDetectionIsChecked;
+        public bool SlowWindowDetectionIsChecked
+        {
+            get => slowWindowDetectionIsChecked;
+            set => NotifyPropertyChanged<bool>(ref slowWindowDetectionIsChecked, value);
+        }
+
+        private Visibility trayIconVisibility = Visibility.Hidden;
+        public Visibility TrayIconVisibility
+        {
+            get => trayIconVisibility;
+            set => NotifyPropertyChanged<Visibility>(ref trayIconVisibility, value);
+        }
+
+        private string? trayIconToolTipText;
+        public string? TrayIconToolTipText
+        {
+            get => trayIconToolTipText;
+            set => NotifyPropertyChanged<string?>(ref trayIconToolTipText, value);
         }
 
         #endregion Value Bindings
@@ -234,6 +664,7 @@ namespace BorderlessGaming.Windows.ViewModels
         public ICommand MakeBordelessButtonClicked { get; }
         public ICommand RestoreWindowButtonClicked { get; }
         public ICommand SetLanguageButonClicked { get; }
+        public ICommand TrayIconDoubleClickCommand { get; }
 
         #endregion Command Bindings
 
@@ -258,65 +689,75 @@ namespace BorderlessGaming.Windows.ViewModels
 
         private void OnUseGlobalHotkeyMenuItemClicked(bool value)
         {
+            if (this.Parent is null) return;
             SettingsWrapper.Instance.Settings.UseGlobalHotkey = value;
             SettingsWrapper.Save();
-            RegisterHotkeys();
+            this.Parent.RegisterHotkeys();
         }
 
         private void OnUseMouseLockHotkeyMenuItemClicked(bool value)
         {
+            if (this.Parent is null) return;
             SettingsWrapper.Instance.Settings.UseMouseLockHotKey = value;
             SettingsWrapper.Save();
-            RegisterHotkeys();
+            this.Parent.RegisterHotkeys();
         }
 
         private void OnUseMouseHideHotkeyMenuItemClicked(bool value)
         {
+            if (this.Parent is null) return;
             SettingsWrapper.Instance.Settings.UseMouseHideHotKey = value;
             SettingsWrapper.Save();
-            RegisterHotkeys();
+            this.Parent.RegisterHotkeys();
         }
 
         private void OnStartMinimizedToTrayMenuItemClicked(bool value)
         {
+            if (this.Parent is null) return;
             SettingsWrapper.Instance.Settings.StartMinimized = value;
             SettingsWrapper.Save();
         }
 
         private void OnCloseToTrayMenuItemClicked(bool value)
         {
+            if (this.Parent is null) return;
             SettingsWrapper.Instance.Settings.CloseToTray = value;
             SettingsWrapper.Save();
         }
 
         private void OnHideBalloonTipsMenuItemClicked(bool value)
         {
+            if (this.Parent is null) return;
             SettingsWrapper.Instance.Settings.HideBalloonTips = value;
             SettingsWrapper.Save();
         }
 
         private void OnUseSlowerWindowDetectionMenuItemClicked(bool value)
         {
+            if (this.Parent is null) return;
             SettingsWrapper.Instance.Settings.SlowWindowDetection = value;
             SettingsWrapper.Save();
         }
 
         private async Task OnViewFullProcessDetailsMenuItemClicked(bool value)
         {
+            if (this.Parent is null) return;
             SettingsWrapper.Instance.Settings.ViewAllProcessDetails = value;
             SettingsWrapper.Save();
-            await RefreshProcesses();
+            await this.Parent.RefreshProcesses();
         }
 
         private void OnExitMenuItemClicked()
         {
-            _closingFromExitMenu = true;
-            this.Parent?.Close();
+            if (this.Parent is null) return;
+            this.Parent.ClosingFromExitMenu = true;
+            this.Parent.Close();
         }
 
         private void OnPauseAutomaticProcessingMenuItemClicked(bool value)
         {
-            _watcher.AutoHandleFavorites = false;
+            if (this.Parent is null) return;
+            this.Parent.Watcher.AutoHandleFavorites = false;
         }
 
         private void OnOpenDataFolderMenuItemClicked()
@@ -333,13 +774,14 @@ namespace BorderlessGaming.Windows.ViewModels
 
         private void OnToggleMouseCursorVisibilityMenuItemClicked(bool value)
         {
+            if (this.Parent is null) return;
             if (Manipulation.MouseCursorIsHidden ||
                 MessageBox.Show(
                     LanguageManager.Data("toggleMouseCursorVisibilityPrompt"),
-                    LanguageManager.Data("toggleMouseCursorVisibilityTitle"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
-                    MessageBoxDefaultButton.Button2) == DialogResult.Yes)
+                    LanguageManager.Data("toggleMouseCursorVisibilityTitle"), MessageBoxButton.YesNo, MessageBoxImage.Warning,
+                    MessageBoxResult.No) == MessageBoxResult.Yes)
             {
-                Manipulation.ToggleMouseCursorVisibility(this);
+                Manipulation.ToggleMouseCursorVisibility(this.Parent);
             }
         }
 
@@ -351,12 +793,14 @@ namespace BorderlessGaming.Windows.ViewModels
         private async Task OnResetHiddenProcessesMenuItemClicked()
         {
             SettingsWrapper.Instance.ResetHiddenProcesses();
-            await RefreshProcesses();
+            if (this.Parent is null) return;
+            await this.Parent.RefreshProcesses();
         }
 
         private async Task OnFullApplicationRefreshMenuItemClicked()
         {
-            await RefreshProcesses();
+            if (this.Parent is null) return;
+            await this.Parent.RefreshProcesses();
         }
 
         private void OnUsageGuideMenuItemClicked()
@@ -386,11 +830,13 @@ namespace BorderlessGaming.Windows.ViewModels
 
         private void OnFavoriteButtonClicked(Favorite? fav)
         {
+            if (fav is null) return;
             this.FavoriteListBoxItemsSource.Remove(fav);
         }
 
         private void OnUnfavoriteButtonClicked(Favorite? fav)
         {
+            if (fav is null) return;
             this.FavoriteListBoxItemsSource.Remove(fav);
         }
 
@@ -422,6 +868,13 @@ namespace BorderlessGaming.Windows.ViewModels
                 }
                 LanguageManager.SetDefaultLanguage(tt.Header as string);
             }
+        }
+
+        private void TrayIconDoubleClicked()
+        {
+            if (this.Parent is null) return;
+            this.Parent.Show();
+            this.Parent.WindowState = WindowState.Normal;
         }
 
         #endregion Event Methods

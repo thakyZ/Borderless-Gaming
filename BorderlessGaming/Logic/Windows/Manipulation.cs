@@ -3,21 +3,30 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Windows.Controls;
 using System.Windows.Forms;
-using BorderlessGaming.Logic.Models;
-using BorderlessGaming.Logic.Steam;
+using System.Windows.Interop;
+
 using BorderlessGaming.Logic.Misc.Utilities;
+using BorderlessGaming.Logic.Models;
+using BorderlessGaming.Logic.NekoBoiNick;
+using BorderlessGaming.Logic.Steam;
 using BorderlessGaming.Properties;
+
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace BorderlessGaming.Logic.Windows
 {
     public static class Manipulation
     {
         // Cursor swap data
-        private static Cursor curInvisibleCursor;
+        private static Cursor curInvisibleCursorForms;
 
-        private static IntPtr hCursorOriginal = IntPtr.Zero;
+        private static HCURSOR hCursorOriginal = HCURSOR.Null;
 
         // List of original screens prior to Windows taskbar hidden
         private static readonly List<OriginalScreenInfo> OriginalScreens = new List<OriginalScreenInfo>();
@@ -34,7 +43,8 @@ namespace BorderlessGaming.Logic.Windows
         public static async Task MakeWindowBorderless(ProcessDetails processDetails, Form frmMain, IntPtr targetWindow,
             Rectangle targetFrame, Favorite favDetails)
         {
-            if (NeedsDelay(targetWindow))
+            var _targetWindow = new HWND(targetWindow);
+            if (NeedsDelay(_targetWindow))
             {
                 await MakeWindowBorderlessDelayed(processDetails, frmMain, targetWindow, targetFrame, favDetails);
             }
@@ -60,37 +70,37 @@ namespace BorderlessGaming.Logic.Windows
                 // If no target frame was specified, assume the entire space on the primary screen
                 if (targetFrame.Width == 0 || targetFrame.Height == 0)
                 {
-                    targetFrame = Screen.FromHandle(targetWindow).Bounds;
+                    targetFrame = Screen.FromHandle(_targetWindow).Bounds;
                 }
 
                 // Get window styles
-                var styleCurrentWindowStandard = Native.GetWindowLong(targetWindow, WindowLongIndex.Style);
-                var styleCurrentWindowExtended = Native.GetWindowLong(targetWindow, WindowLongIndex.ExtendedStyle);
+                var styleCurrentWindowStandard = Native.GetWindowLong32(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE);
+                var styleCurrentWindowExtended = Native.GetWindowLong64(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
 
                 // Compute new styles (XOR of the inverse of all the bits to filter)
                 var styleNewWindowStandard =
                     styleCurrentWindowStandard
                     & ~(
-                        WindowStyleFlags.Caption // composite of Border and DialogFrame
-                        //   | WindowStyleFlags.Border
-                        //   | WindowStyleFlags.DialogFrame                  
-                        | WindowStyleFlags.ThickFrame
-                        | WindowStyleFlags.SystemMenu
-                        | WindowStyleFlags.MaximizeBox // same as TabStop
-                        | WindowStyleFlags.MinimizeBox // same as Group
+                        WINDOW_STYLE.WS_CAPTION // composite of Border and DialogFrame
+                        //   | WINDOW_STYLE.WS_BORDER
+                        //   | WINDOW_STYLE.WS_DLGFRAME                  
+                        | WINDOW_STYLE.WS_THICKFRAME
+                        | WINDOW_STYLE.WS_SYSMENU
+                        | WINDOW_STYLE.WS_MAXIMIZEBOX // same as TabStop
+                        | WINDOW_STYLE.WS_MINIMIZEBOX // same as Group
                     );
 
                 var styleNewWindowExtended =
                     styleCurrentWindowExtended
                     & ~(
-                        WindowStyleFlags.ExtendedDlgModalFrame
-                        | WindowStyleFlags.ExtendedComposited
-                        | WindowStyleFlags.ExtendedWindowEdge
-                        | WindowStyleFlags.ExtendedClientEdge
-                        | WindowStyleFlags.ExtendedLayered
-                        | WindowStyleFlags.ExtendedStaticEdge
-                        | WindowStyleFlags.ExtendedToolWindow
-                        | WindowStyleFlags.ExtendedAppWindow
+                        WINDOW_EX_STYLE.WS_EX_DLGMODALFRAME
+                        | WINDOW_EX_STYLE.WS_EX_COMPOSITED
+                        | WINDOW_EX_STYLE.WS_EX_WINDOWEDGE
+                        | WINDOW_EX_STYLE.WS_EX_CLIENTEDGE
+                        | WINDOW_EX_STYLE.WS_EX_LAYERED
+                        | WINDOW_EX_STYLE.WS_EX_STATICEDGE
+                        | WINDOW_EX_STYLE.WS_EX_TOOLWINDOW
+                        | WINDOW_EX_STYLE.WS_EX_APPWINDOW
                     );
 
                 // Should have process details by now
@@ -99,34 +109,33 @@ namespace BorderlessGaming.Logic.Windows
                     // Save original details on this window so that we have a chance at undoing the process
                     processDetails.OriginalStyleFlagsStandard = styleCurrentWindowStandard;
                     processDetails.OriginalStyleFlagsExtended = styleCurrentWindowExtended;
-                    Native.Rect rectTemp;
-                    Native.GetWindowRect(processDetails.WindowHandle, out rectTemp);
-                    processDetails.OriginalLocation = new Rectangle(rectTemp.Left, rectTemp.Top,
-                        rectTemp.Right - rectTemp.Left, rectTemp.Bottom - rectTemp.Top);
+                    PInvoke.GetWindowRect(processDetails.WindowHandle, out RECT rectTemp);
+                    processDetails.OriginalLocation = new Rectangle(rectTemp.left, rectTemp.top,
+                        rectTemp.right - rectTemp.left, rectTemp.bottom - rectTemp.top);
                 }
 
                 // remove the menu and menuitems and force a redraw
                 if (favDetails.RemoveMenus)
                 {
                     // unfortunately, menus can't be re-added easily so they aren't removed by default anymore
-                    var menuHandle = Native.GetMenu(targetWindow);
-                    if (menuHandle != IntPtr.Zero)
+                    var menuHandle = PInvoke.GetMenu(_targetWindow);
+                    if (menuHandle != HMENU.Null)
                     {
-                        var menuItemCount = Native.GetMenuItemCount(menuHandle);
+                        var menuItemCount = PInvoke.GetMenuItemCount(menuHandle);
 
                         for (var i = 0; i < menuItemCount; i++)
                         {
-                            Native.RemoveMenu(menuHandle, 0, MenuFlags.ByPosition | MenuFlags.Remove);
+                            PInvoke.RemoveMenu(menuHandle, 0, MENU_ITEM_FLAGS.MF_BYPOSITION | MENU_ITEM_FLAGS.MF_REMOVE);
                         }
 
-                        Native.DrawMenuBar(targetWindow);
+                        PInvoke.DrawMenuBar(_targetWindow);
                     }
                 }
 
                 // auto-hide the Windows taskbar (do this before resizing the window)
                 if (favDetails.HideWindowsTaskbar)
                 {
-                    Native.ShowWindow(frmMain.Handle, WindowShowStyle.ShowNoActivate);
+                    PInvoke.ShowWindow(new HWND(frmMain.Handle), SHOW_WINDOW_CMD.SW_SHOWNOACTIVATE);
                     if (frmMain.WindowState == FormWindowState.Minimized)
                     {
                         frmMain.WindowState = FormWindowState.Normal;
@@ -142,8 +151,8 @@ namespace BorderlessGaming.Logic.Windows
                 }
 
                 // update window styles
-                Native.SetWindowLong(targetWindow, WindowLongIndex.Style, styleNewWindowStandard);
-                Native.SetWindowLong(targetWindow, WindowLongIndex.ExtendedStyle, styleNewWindowExtended);
+                Native.SetWindowLong32(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE, styleNewWindowStandard);
+                Native.SetWindowLong64(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, styleNewWindowExtended);
 
                 // update window position
                 if (favDetails.Size != FavoriteSize.NoChange)
@@ -152,37 +161,37 @@ namespace BorderlessGaming.Logic.Windows
                         favDetails.PositionHeight == 0)
                     {
                         // Set the window size to the biggest possible, using bounding adjustments
-                        Native.SetWindowPos
+                        PInvoke.SetWindowPos
                         (
-                            targetWindow,
-                            0,
+                            _targetWindow,
+                            HWND.Null,
                             targetFrame.X + favDetails.OffsetLeft,
                             targetFrame.Y + favDetails.OffsetTop,
                             targetFrame.Width - favDetails.OffsetLeft + favDetails.OffsetRight,
                             targetFrame.Height - favDetails.OffsetTop + favDetails.OffsetBottom,
-                            SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoOwnerZOrder |
-                            SetWindowPosFlags.NoSendChanging
+                            SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER |
+                            SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
                         );
 
                         // And auto-maximize
                         if (favDetails.ShouldMaximize)
                         {
-                            Native.ShowWindow(targetWindow, WindowShowStyle.Maximize);
+                            PInvoke.ShowWindow(_targetWindow, SHOW_WINDOW_CMD.SW_MAXIMIZE);
                         }
                     }
                     else
                     {
                         // Set the window size to the exact position specified by the user
-                        Native.SetWindowPos
+                        PInvoke.SetWindowPos
                         (
-                            targetWindow,
-                            0,
+                            _targetWindow,
+                            HWND.Null,
                             favDetails.PositionX,
                             favDetails.PositionY,
                             favDetails.PositionWidth,
                             favDetails.PositionHeight,
-                            SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoOwnerZOrder |
-                            SetWindowPosFlags.NoSendChanging
+                            SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER |
+                            SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
                         );
                     }
                 }
@@ -190,16 +199,208 @@ namespace BorderlessGaming.Logic.Windows
                 // Set topmost
                 if (favDetails.TopMost)
                 {
-                    Native.SetWindowPos
+                    PInvoke.SetWindowPos
                     (
-                        targetWindow,
+                        _targetWindow,
                         Native.HWND_TOPMOST,
                         0,
                         0,
                         0,
                         0,
-                        SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoMove | SetWindowPosFlags.NoSize |
-                        SetWindowPosFlags.NoSendChanging
+                        SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE |
+                        SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
+                    );
+                }
+            }
+
+            // Make a note that we attempted to make the window borderless
+            if (processDetails != null)
+            {
+                processDetails.MadeBorderless = true;
+                processDetails.MadeBorderlessAttempts++;
+            }
+            if (SteamApi.IsLoaded)
+            {
+                if (SteamApi.UnlockAchievement("FIRST_TIME_BORDERLESS"))
+                {
+                    Console.WriteLine("Great!");
+                }
+            }
+        }
+
+        /// <summary>
+        ///     remove the menu, resize the window, remove border, and maximize
+        /// </summary>
+        public static async Task MakeWindowBorderless(ProcessDetails processDetails, System.Windows.Window frmMain, IntPtr targetWindow,
+            System.Windows.Int32Rect targetFrame, Favorite favDetails)
+        {
+            var _targetWindow = new HWND(targetWindow);
+            var _windowHandle = new WindowInteropHelper(frmMain).Handle;
+            if (NeedsDelay(_targetWindow))
+            {
+                await MakeWindowBorderlessDelayed(processDetails, frmMain, targetWindow, targetFrame, favDetails);
+            }
+            else
+            {
+                // Automatically match a window to favorite details, if that information is available.
+                // Note: if one is not available, the default settings will be used as a new Favorite() object.
+
+                // Automatically match this window to a process
+
+                // Failsafe to prevent rapid switching, but also allow a few changes to the window handle (to be persistent)
+                if (processDetails != null)
+                {
+                    if (processDetails.MadeBorderless)
+                    {
+                        if (processDetails.MadeBorderlessAttempts > 3 || ! await processDetails.WindowHasTargetableStyles())
+                        {
+                            return;
+                        }
+                    }
+                }
+
+                // If no target frame was specified, assume the entire space on the primary screen
+                if (targetFrame.Width == 0 || targetFrame.Height == 0)
+                {
+                    targetFrame = WpfScreen.FromHandle(targetWindow).Bounds;
+                }
+
+                // Get window styles
+                var styleCurrentWindowStandard = Native.GetWindowLong32(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE);
+                var styleCurrentWindowExtended = Native.GetWindowLong64(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
+
+                // Compute new styles (XOR of the inverse of all the bits to filter)
+                var styleNewWindowStandard =
+                    styleCurrentWindowStandard
+                    & ~(
+                        WINDOW_STYLE.WS_CAPTION // composite of Border and DialogFrame
+                        //   | WINDOW_STYLE.WS_BORDER
+                        //   | WINDOW_STYLE.WS_DLGFRAME                  
+                        | WINDOW_STYLE.WS_THICKFRAME
+                        | WINDOW_STYLE.WS_SYSMENU
+                        | WINDOW_STYLE.WS_MAXIMIZEBOX // same as TabStop
+                        | WINDOW_STYLE.WS_MINIMIZEBOX // same as Group
+                    );
+
+                var styleNewWindowExtended =
+                    styleCurrentWindowExtended
+                    & ~(
+                        WINDOW_EX_STYLE.WS_EX_DLGMODALFRAME
+                        | WINDOW_EX_STYLE.WS_EX_COMPOSITED
+                        | WINDOW_EX_STYLE.WS_EX_WINDOWEDGE
+                        | WINDOW_EX_STYLE.WS_EX_CLIENTEDGE
+                        | WINDOW_EX_STYLE.WS_EX_LAYERED
+                        | WINDOW_EX_STYLE.WS_EX_STATICEDGE
+                        | WINDOW_EX_STYLE.WS_EX_TOOLWINDOW
+                        | WINDOW_EX_STYLE.WS_EX_APPWINDOW
+                    );
+
+                // Should have process details by now
+                if (processDetails != null)
+                {
+                    // Save original details on this window so that we have a chance at undoing the process
+                    processDetails.OriginalStyleFlagsStandard = styleCurrentWindowStandard;
+                    processDetails.OriginalStyleFlagsExtended = styleCurrentWindowExtended;
+                    PInvoke.GetWindowRect(processDetails.WindowHandle, out RECT rectTemp);
+                    processDetails.OriginalLocation = new Rectangle(rectTemp.left, rectTemp.top,
+                        rectTemp.right - rectTemp.left, rectTemp.bottom - rectTemp.top);
+                }
+
+                // remove the menu and menuitems and force a redraw
+                if (favDetails.RemoveMenus)
+                {
+                    // unfortunately, menus can't be re-added easily so they aren't removed by default anymore
+                    var menuHandle = PInvoke.GetMenu(new HWND(targetWindow));
+                    if (menuHandle != HMENU.Null)
+                    {
+                        var menuItemCount = PInvoke.GetMenuItemCount(menuHandle);
+
+                        for (var i = 0; i < menuItemCount; i++)
+                        {
+                            PInvoke.RemoveMenu(menuHandle, 0, MENU_ITEM_FLAGS.MF_BYPOSITION | MENU_ITEM_FLAGS.MF_REMOVE);
+                        }
+
+                        PInvoke.DrawMenuBar(new HWND(targetWindow));
+                    }
+                }
+
+                // auto-hide the Windows taskbar (do this before resizing the window)
+                if (favDetails.HideWindowsTaskbar)
+                {
+                    PInvoke.ShowWindow(new HWND(_windowHandle), SHOW_WINDOW_CMD.SW_SHOWNOACTIVATE);
+                    if (frmMain.WindowState is System.Windows.WindowState.Minimized)
+                    {
+                        frmMain.WindowState = System.Windows.WindowState.Normal;
+                    }
+
+                    ToggleWindowsTaskbarVisibility(Boolstate.False);
+                }
+
+                // auto-hide the mouse cursor
+                if (favDetails.HideMouseCursor)
+                {
+                    ToggleMouseCursorVisibility(frmMain, Boolstate.False);
+                }
+
+                // update window styles
+                Native.SetWindowLong32(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE, styleNewWindowStandard);
+                Native.SetWindowLong64(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, styleNewWindowExtended);
+
+                // update window position
+                if (favDetails.Size != FavoriteSize.NoChange)
+                {
+                    if (favDetails.Size == FavoriteSize.FullScreen || favDetails.PositionWidth == 0 ||
+                        favDetails.PositionHeight == 0)
+                    {
+                        // Set the window size to the biggest possible, using bounding adjustments
+                        PInvoke.SetWindowPos
+                        (
+                            _targetWindow,
+                            HWND.Null,
+                            targetFrame.X + favDetails.OffsetLeft,
+                            targetFrame.Y + favDetails.OffsetTop,
+                            targetFrame.Width - favDetails.OffsetLeft + favDetails.OffsetRight,
+                            targetFrame.Height - favDetails.OffsetTop + favDetails.OffsetBottom,
+                            SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER |
+                            SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
+                        );
+
+                        // And auto-maximize
+                        if (favDetails.ShouldMaximize)
+                        {
+                            PInvoke.ShowWindow(_targetWindow, SHOW_WINDOW_CMD.SW_MAXIMIZE);
+                        }
+                    }
+                    else
+                    {
+                        // Set the window size to the exact position specified by the user
+                        PInvoke.SetWindowPos
+                        (
+                            _targetWindow,
+                            HWND.Null,
+                            favDetails.PositionX,
+                            favDetails.PositionY,
+                            favDetails.PositionWidth,
+                            favDetails.PositionHeight,
+                            SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER |
+                            SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
+                        );
+                    }
+                }
+
+                // Set topmost
+                if (favDetails.TopMost)
+                {
+                    PInvoke.SetWindowPos
+                    (
+                        _targetWindow,
+                        Native.HWND_TOPMOST,
+                        0,
+                        0,
+                        0,
+                        0,
+                        SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE |
+                        SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
                     );
                 }
             }
@@ -222,6 +423,7 @@ namespace BorderlessGaming.Logic.Windows
         private static async Task MakeWindowBorderlessDelayed(ProcessDetails processDetails, Form frmMain,
             IntPtr targetWindow, Rectangle targetFrame, Favorite favDetails)
         {
+            var _targetWindow = new HWND(targetWindow);
             // Automatically match a window to favorite details, if that information is available.
             // Note: if one is not available, the default settings will be used as a new Favorite() object.
 
@@ -246,34 +448,34 @@ namespace BorderlessGaming.Logic.Windows
             }
 
             // Get window styles
-            var styleCurrentWindowStandard = Native.GetWindowLong(targetWindow, WindowLongIndex.Style);
-            var styleCurrentWindowExtended = Native.GetWindowLong(targetWindow, WindowLongIndex.ExtendedStyle);
+            var styleCurrentWindowStandard = Native.GetWindowLong32(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE);
+            var styleCurrentWindowExtended = Native.GetWindowLong64(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
 
             // Compute new styles (XOR of the inverse of all the bits to filter)
             var styleNewWindowStandard =
                 styleCurrentWindowStandard
                 & ~(
-                    WindowStyleFlags.Caption // composite of Border and DialogFrame
-                    // | WindowStyleFlags.Border
-                    //| WindowStyleFlags.DialogFrame                  
-                    | WindowStyleFlags.ThickFrame
-                    | WindowStyleFlags.OverlappedWindow
-                    | WindowStyleFlags.SystemMenu
-                    | WindowStyleFlags.MaximizeBox // same as TabStop
-                    | WindowStyleFlags.MinimizeBox // same as Group
+                    WINDOW_STYLE.WS_CAPTION // composite of Border and DialogFrame
+                    // | WINDOW_STYLE.WS_BORDER
+                    //| WINDOW_STYLE.WS_DLGFRAME                  
+                    | WINDOW_STYLE.WS_THICKFRAME
+                    | WINDOW_STYLE.WS_OVERLAPPEDWINDOW
+                    | WINDOW_STYLE.WS_SYSMENU
+                    | WINDOW_STYLE.WS_MAXIMIZEBOX // same as TabStop
+                    | WINDOW_STYLE.WS_MINIMIZEBOX // same as Group
                 );
 
             var styleNewWindowExtended =
                 styleCurrentWindowExtended
                 & ~(
-                    WindowStyleFlags.ExtendedDlgModalFrame
-                    | WindowStyleFlags.ExtendedComposited
-                    | WindowStyleFlags.ExtendedWindowEdge
-                    | WindowStyleFlags.ExtendedClientEdge
-                    | WindowStyleFlags.ExtendedLayered
-                    | WindowStyleFlags.ExtendedStaticEdge
-                    | WindowStyleFlags.ExtendedToolWindow
-                    | WindowStyleFlags.ExtendedAppWindow
+                    WINDOW_EX_STYLE.WS_EX_DLGMODALFRAME
+                    | WINDOW_EX_STYLE.WS_EX_COMPOSITED
+                    | WINDOW_EX_STYLE.WS_EX_WINDOWEDGE
+                    | WINDOW_EX_STYLE.WS_EX_CLIENTEDGE
+                    | WINDOW_EX_STYLE.WS_EX_LAYERED
+                    | WINDOW_EX_STYLE.WS_EX_STATICEDGE
+                    | WINDOW_EX_STYLE.WS_EX_TOOLWINDOW
+                    | WINDOW_EX_STYLE.WS_EX_APPWINDOW
                 );
 
             // Should have process details by now
@@ -282,32 +484,32 @@ namespace BorderlessGaming.Logic.Windows
                 // Save original details on this window so that we have a chance at undoing the process
                 processDetails.OriginalStyleFlagsStandard = styleCurrentWindowStandard;
                 processDetails.OriginalStyleFlagsExtended = styleCurrentWindowExtended;
-                Native.GetWindowRect(processDetails.WindowHandle, out Native.Rect rect_temp);
-                processDetails.OriginalLocation = new Rectangle(rect_temp.Left, rect_temp.Top,
-                    rect_temp.Right - rect_temp.Left, rect_temp.Bottom - rect_temp.Top);
+                PInvoke.GetWindowRect(processDetails.WindowHandle, out RECT rect_temp);
+                processDetails.OriginalLocation = new Rectangle(rect_temp.left, rect_temp.top,
+                    rect_temp.right - rect_temp.left, rect_temp.bottom - rect_temp.top);
             }
 
             // remove the menu and menuitems and force a redraw
 
             // unfortunately, menus can't be re-added easily so they aren't removed by default anymore
-            var menuHandle = Native.GetMenu(targetWindow);
-            if (menuHandle != IntPtr.Zero)
+            var menuHandle = PInvoke.GetMenu(_targetWindow);
+            if (menuHandle != HMENU.Null)
             {
-                var menuItemCount = Native.GetMenuItemCount(menuHandle);
+                var menuItemCount = PInvoke.GetMenuItemCount(menuHandle);
 
                 for (var i = 0; i < menuItemCount; i++)
                 {
-                    Native.RemoveMenu(menuHandle, 0, MenuFlags.ByPosition | MenuFlags.Remove);
+                    PInvoke.RemoveMenu(menuHandle, 0, MENU_ITEM_FLAGS.MF_BYPOSITION | MENU_ITEM_FLAGS.MF_REMOVE);
                 }
 
-                Native.DrawMenuBar(targetWindow);
+                PInvoke.DrawMenuBar(_targetWindow);
             }
 
 
             // auto-hide the Windows taskbar (do this before resizing the window)
             if (favDetails.HideWindowsTaskbar)
             {
-                Native.ShowWindow(frmMain.Handle, WindowShowStyle.ShowNoActivate);
+                PInvoke.ShowWindow(new HWND(frmMain.Handle), SHOW_WINDOW_CMD.SW_SHOWMINNOACTIVE);
                 if (frmMain.WindowState == FormWindowState.Minimized)
                 {
                     frmMain.WindowState = FormWindowState.Normal;
@@ -330,31 +532,31 @@ namespace BorderlessGaming.Logic.Windows
                     favDetails.PositionHeight == 0)
                 {
                     // Set the window size to the biggest possible, using bounding adjustments
-                    Native.SetWindowPos
+                    PInvoke.SetWindowPos
                     (
-                        targetWindow,
-                        0,
+                        _targetWindow,
+                        HWND.Null,
                         targetFrame.X + favDetails.OffsetLeft,
                         targetFrame.Y + favDetails.OffsetTop,
                         targetFrame.Width - favDetails.OffsetLeft + favDetails.OffsetRight,
                         targetFrame.Height - favDetails.OffsetTop + favDetails.OffsetBottom,
-                        SetWindowPosFlags.FrameChanged | SetWindowPosFlags.ShowWindow |
-                        SetWindowPosFlags.NoOwnerZOrder | SetWindowPosFlags.NoSendChanging
+                        SET_WINDOW_POS_FLAGS.SWP_FRAMECHANGED | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW |
+                        SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER | SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
                     );
                 }
                 else
                 {
                     // Set the window size to the exact position specified by the user
-                    Native.SetWindowPos
+                    PInvoke.SetWindowPos
                     (
-                        targetWindow,
-                        0,
+                        _targetWindow,
+                        HWND.Null,
                         favDetails.PositionX,
                         favDetails.PositionY,
                         favDetails.PositionWidth,
                         favDetails.PositionHeight,
-                        SetWindowPosFlags.FrameChanged | SetWindowPosFlags.ShowWindow |
-                        SetWindowPosFlags.NoOwnerZOrder | SetWindowPosFlags.NoSendChanging
+                        SET_WINDOW_POS_FLAGS.SWP_FRAMECHANGED | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW |
+                        SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER | SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
                     );
                 }
             }
@@ -362,23 +564,188 @@ namespace BorderlessGaming.Logic.Windows
             // Set topmost
             if (favDetails.TopMost)
             {
-                Native.SetWindowPos
+                PInvoke.SetWindowPos
                 (
-                    targetWindow,
+                    _targetWindow,
                     Native.HWND_TOPMOST,
                     0,
                     0,
                     0,
                     0,
-                    SetWindowPosFlags.FrameChanged | SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoMove |
-                    SetWindowPosFlags.NoSize | SetWindowPosFlags.NoSendChanging
+                    SET_WINDOW_POS_FLAGS.SWP_FRAMECHANGED | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOMOVE |
+                    SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
                 );
             }
             //wait before applying styles
             await TaskUtilities.WaitAndStartTaskAsync(() =>
             {
-                Native.SetWindowLong(targetWindow, WindowLongIndex.Style, styleNewWindowStandard);
-                Native.SetWindowLong(targetWindow, WindowLongIndex.ExtendedStyle, styleNewWindowExtended);
+                Native.SetWindowLong32(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE, styleNewWindowStandard);
+                Native.SetWindowLong64(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, styleNewWindowExtended);
+            }, 4);
+        }
+
+        private static async Task MakeWindowBorderlessDelayed(ProcessDetails processDetails, System.Windows.Window frmMain,
+            IntPtr targetWindow, System.Windows.Int32Rect targetFrame, Favorite favDetails)
+        {
+            var _targetWindow = new HWND(targetWindow);
+            var _windowHandle = new WindowInteropHelper(frmMain).Handle;
+            // Automatically match a window to favorite details, if that information is available.
+            // Note: if one is not available, the default settings will be used as a new Favorite() object.
+
+            // Automatically match this window to a process
+
+            // Failsafe to prevent rapid switching, but also allow a few changes to the window handle (to be persistent)
+            if (processDetails != null)
+            {
+                if (processDetails.MadeBorderless)
+                {
+                    if (processDetails.MadeBorderlessAttempts > 3 || ! await processDetails.WindowHasTargetableStyles())
+                    {
+                        return;
+                    }
+                }
+            }
+
+            // If no target frame was specified, assume the entire space on the primary screen
+            if (targetFrame.Width == 0 || targetFrame.Height == 0)
+            {
+                targetFrame = WpfScreen.FromHandle(_targetWindow).Bounds;
+            }
+
+            // Get window styles
+            var styleCurrentWindowStandard = Native.GetWindowLong32(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE);
+            var styleCurrentWindowExtended = Native.GetWindowLong64(_targetWindow, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
+
+            // Compute new styles (XOR of the inverse of all the bits to filter)
+            var styleNewWindowStandard =
+                styleCurrentWindowStandard
+                & ~(
+                    WINDOW_STYLE.WS_CAPTION // composite of Border and DialogFrame
+                    // | WINDOW_STYLE.WS_BORDER
+                    //| WINDOW_STYLE.WS_DLGFRAME                  
+                    | WINDOW_STYLE.WS_THICKFRAME
+                    | WINDOW_STYLE.WS_OVERLAPPEDWINDOW
+                    | WINDOW_STYLE.WS_SYSMENU
+                    | WINDOW_STYLE.WS_MAXIMIZEBOX // same as TabStop
+                    | WINDOW_STYLE.WS_MINIMIZEBOX // same as Group
+                );
+
+            var styleNewWindowExtended =
+                styleCurrentWindowExtended
+                & ~(
+                    WINDOW_EX_STYLE.WS_EX_DLGMODALFRAME
+                    | WINDOW_EX_STYLE.WS_EX_COMPOSITED
+                    | WINDOW_EX_STYLE.WS_EX_WINDOWEDGE
+                    | WINDOW_EX_STYLE.WS_EX_CLIENTEDGE
+                    | WINDOW_EX_STYLE.WS_EX_LAYERED
+                    | WINDOW_EX_STYLE.WS_EX_STATICEDGE
+                    | WINDOW_EX_STYLE.WS_EX_TOOLWINDOW
+                    | WINDOW_EX_STYLE.WS_EX_APPWINDOW
+                );
+
+            // Should have process details by now
+            if (processDetails != null)
+            {
+                // Save original details on this window so that we have a chance at undoing the process
+                processDetails.OriginalStyleFlagsStandard = styleCurrentWindowStandard;
+                processDetails.OriginalStyleFlagsExtended = styleCurrentWindowExtended;
+                PInvoke.GetWindowRect(processDetails.WindowHandle, out RECT rect_temp);
+                processDetails.OriginalLocation = new Rectangle(rect_temp.left, rect_temp.top,
+                    rect_temp.right - rect_temp.left, rect_temp.bottom - rect_temp.top);
+            }
+
+            // remove the menu and menuitems and force a redraw
+
+            // unfortunately, menus can't be re-added easily so they aren't removed by default anymore
+            var menuHandle = PInvoke.GetMenu(_targetWindow);
+            if (menuHandle != HWND.Null)
+            {
+                var menuItemCount = PInvoke.GetMenuItemCount(menuHandle);
+
+                for (var i = 0; i < menuItemCount; i++)
+                {
+                    PInvoke.RemoveMenu(menuHandle, 0, MENU_ITEM_FLAGS.MF_BYPOSITION | MENU_ITEM_FLAGS.MF_REMOVE);
+                }
+
+                PInvoke.DrawMenuBar(_targetWindow);
+            }
+
+
+            // auto-hide the Windows taskbar (do this before resizing the window)
+            if (favDetails.HideWindowsTaskbar)
+            {
+                PInvoke.ShowWindow(new HWND(_windowHandle), SHOW_WINDOW_CMD.SW_SHOWNOACTIVATE);
+                if (frmMain.WindowState == System.Windows.WindowState.Minimized)
+                {
+                    frmMain.WindowState = System.Windows.WindowState.Normal;
+                }
+
+                ToggleWindowsTaskbarVisibility(Boolstate.False);
+            }
+
+            // auto-hide the mouse cursor
+            if (favDetails.HideMouseCursor)
+            {
+                ToggleMouseCursorVisibility(frmMain, Boolstate.False);
+            }
+
+
+            // update window position
+            if (favDetails.Size != FavoriteSize.NoChange)
+            {
+                if (favDetails.Size == FavoriteSize.FullScreen || favDetails.PositionWidth == 0 ||
+                    favDetails.PositionHeight == 0)
+                {
+                    // Set the window size to the biggest possible, using bounding adjustments
+                    PInvoke.SetWindowPos
+                    (
+                        _targetWindow,
+                        HWND.Null,
+                        targetFrame.X + favDetails.OffsetLeft,
+                        targetFrame.Y + favDetails.OffsetTop,
+                        targetFrame.Width - favDetails.OffsetLeft + favDetails.OffsetRight,
+                        targetFrame.Height - favDetails.OffsetTop + favDetails.OffsetBottom,
+                        SET_WINDOW_POS_FLAGS.SWP_FRAMECHANGED | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW |
+                        SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER | SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
+                    );
+                }
+                else
+                {
+                    // Set the window size to the exact position specified by the user
+                    PInvoke.SetWindowPos
+                    (
+                        _targetWindow,
+                        HWND.Null,
+                        favDetails.PositionX,
+                        favDetails.PositionY,
+                        favDetails.PositionWidth,
+                        favDetails.PositionHeight,
+                        SET_WINDOW_POS_FLAGS.SWP_FRAMECHANGED | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW |
+                        SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER | SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
+                    );
+                }
+            }
+
+            // Set topmost
+            if (favDetails.TopMost)
+            {
+                PInvoke.SetWindowPos
+                (
+                    _targetWindow,
+                    Native.HWND_TOPMOST,
+                    0,
+                    0,
+                    0,
+                    0,
+                    SET_WINDOW_POS_FLAGS.SWP_FRAMECHANGED | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOMOVE |
+                    SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
+                );
+            }
+            //wait before applying styles
+            await TaskUtilities.WaitAndStartTaskAsync(() =>
+            {
+                Native.SetWindowLong32(new HWND(targetWindow), WINDOW_LONG_PTR_INDEX.GWL_STYLE, styleNewWindowStandard);
+                Native.SetWindowLong64(new HWND(targetWindow), WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, styleNewWindowExtended);
             }, 4);
         }
 
@@ -390,15 +757,31 @@ namespace BorderlessGaming.Logic.Windows
         /// <returns></returns>
         private static bool IsUnreal(IntPtr handle)
         {
-            return Native.GetWindowClassName(handle).ToLower().Contains("unreal");
+            return IsUnreal(new HWND(handle));
+        }
+
+
+        /// <summary>
+        ///     Check if a window class contains Unreal because it differs per game.
+        /// </summary>
+        /// <param name="handle"></param>
+        /// <returns></returns>
+        private static bool IsUnreal(HWND hWnd)
+        {
+            return Native.GetWindowClassName(hWnd).ToLower().Contains("unreal");
         }
 
         private static bool NeedsDelay(IntPtr handle)
         {
+            return NeedsDelay(new HWND(handle));
+        }
+
+        private static bool NeedsDelay(HWND hWnd)
+        {
             //other game engines
             var classNames = new List<string> {"YYGameMakerYY"};
-            var className = Native.GetWindowClassName(handle);
-            return IsUnreal(handle) || classNames.Any(name => name.Equals(className));
+            var className = Native.GetWindowClassName(hWnd);
+            return IsUnreal(hWnd) || classNames.Any(name => name.Equals(className));
         }
 
         public static void RestoreWindow(ProcessDetails pd)
@@ -408,13 +791,13 @@ namespace BorderlessGaming.Logic.Windows
                 return;
             }
 
-            Native.SetWindowLong(pd.WindowHandle, WindowLongIndex.Style, pd.OriginalStyleFlagsStandard);
-            Native.SetWindowLong(pd.WindowHandle, WindowLongIndex.ExtendedStyle, pd.OriginalStyleFlagsExtended);
-            Native.SetWindowPos(pd.WindowHandle, IntPtr.Zero, pd.OriginalLocation.X, pd.OriginalLocation.Y,
+            Native.SetWindowLong32(pd.WindowHandle, WINDOW_LONG_PTR_INDEX.GWL_STYLE, pd.OriginalStyleFlagsStandard);
+            Native.SetWindowLong64(pd.WindowHandle, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, pd.OriginalStyleFlagsExtended);
+            PInvoke.SetWindowPos(pd.WindowHandle, HWND.Null, pd.OriginalLocation.X, pd.OriginalLocation.Y,
                 pd.OriginalLocation.Width, pd.OriginalLocation.Height,
-                SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoZOrder);
-            Native.SetWindowPos(pd.WindowHandle, Native.HWND_NOTTOPMOST, 0, 0, 0, 0,
-                SetWindowPosFlags.NoActivate | SetWindowPosFlags.NoMove | SetWindowPosFlags.NoSize);
+                SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOZORDER);
+            PInvoke.SetWindowPos(pd.WindowHandle, Native.HWND_NOTTOPMOST, 0, 0, 0, 0,
+                SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE | SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE);
             pd.MadeBorderless = false;
             pd.MadeBorderlessAttempts = 0;
         }
@@ -423,14 +806,14 @@ namespace BorderlessGaming.Logic.Windows
         {
             try
             {
-                var hTaskBar = Native.FindWindow("Shell_TrayWnd", null);
+                var hTaskBar = PInvoke.FindWindow("Shell_TrayWnd", null);
 
-                if (hTaskBar.ToInt32() == Native.INVALID_HANDLE_VALUE || hTaskBar == IntPtr.Zero)
+                if (hTaskBar == Native.INVALID_HANDLE_VALUE || hTaskBar == IntPtr.Zero)
                 {
                     return;
                 }
 
-                var TaskBarIsCurrentlyVisible = Native.IsWindowVisible(hTaskBar);
+                var TaskBarIsCurrentlyVisible = PInvoke.IsWindowVisible(hTaskBar);
                 var wantToMakeWindowsTaskbarVisible = forced == Boolstate.True
                     ? true
                     : forced ==Boolstate.False
@@ -456,18 +839,14 @@ namespace BorderlessGaming.Logic.Windows
                     {
                         var osi = new OriginalScreenInfo();
                         osi.Screen = screen;
-                        osi.Workarea = new Native.Rect();
-                        osi.Workarea.Left = screen.WorkingArea.Left;
-                        osi.Workarea.Top = screen.WorkingArea.Top;
-                        osi.Workarea.Right = screen.WorkingArea.Right;
-                        osi.Workarea.Bottom = screen.WorkingArea.Bottom;
+                        osi.Workarea = (RECT)screen.WorkingArea;
                         OriginalScreens.Add(osi);
                     }
                 }
 
                 // Show or hide the Windows taskbar
-                Native.ShowWindow(hTaskBar,
-                    wantToMakeWindowsTaskbarVisible ? WindowShowStyle.ShowNoActivate : WindowShowStyle.Hide);
+                PInvoke.ShowWindow(hTaskBar,
+                    wantToMakeWindowsTaskbarVisible ? SHOW_WINDOW_CMD.SW_SHOWNOACTIVATE : SHOW_WINDOW_CMD.SW_HIDE);
 
                 // Keep track of the taskbar state so we don't let the user accidentally close Borderless Gaming
                 WindowsTaskbarIsHidden = !wantToMakeWindowsTaskbarVisible;
@@ -477,7 +856,19 @@ namespace BorderlessGaming.Logic.Windows
                     // If we're showing the taskbar, let's restore the original screen desktop work areas...
                     foreach (var osi in OriginalScreens)
                     {
-                        Native.SystemParametersInfo(SPI.SPI_SETWORKAREA, 0, ref osi.Workarea, SPIF.SPIF_SENDCHANGE);
+                        try
+                        {
+                            unsafe
+                            {
+                                RECT workArea = new RECT();
+                                PInvoke.SystemParametersInfo(SYSTEM_PARAMETERS_INFO_ACTION.SPI_SETWORKAREA, 0, &workArea, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS.SPIF_SENDCHANGE);
+                                osi.Workarea = workArea;
+                            }
+                        }
+                        catch (Exception exception)
+                        {
+                            // TODO: Log here...
+                        }
                     }
 
                     // ...and then forget them (we don't need them anymore)
@@ -494,12 +885,20 @@ namespace BorderlessGaming.Logic.Windows
                     // maximizing windows works as expected.
                     foreach (var osi in OriginalScreens)
                     {
-                        var rect = new Native.Rect();
-                        rect.Left = osi.Screen.Bounds.Left;
-                        rect.Top = osi.Screen.Bounds.Top;
-                        rect.Right = osi.Screen.Bounds.Right;
-                        rect.Bottom = osi.Screen.Bounds.Bottom;
-                        Native.SystemParametersInfo(SPI.SPI_SETWORKAREA, 0, ref rect, SPIF.SPIF_SENDCHANGE);
+                        RECT rect = osi.Screen.Bounds;
+                        try
+                        {
+                            unsafe
+                            {
+                                RECT _rect = default(RECT);
+                                PInvoke.SystemParametersInfo(SYSTEM_PARAMETERS_INFO_ACTION.SPI_SETWORKAREA, 0, &_rect, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS.SPIF_SENDCHANGE);
+                                rect = _rect;
+                            }
+                        }
+                        catch (Exception exception)
+                        {
+                            // TODO: Log here...
+                        }
 
                         // Note: WinAPI SystemParametersInfo() will automatically determine which screen by the rectangle we pass in.
                         //       (it's not possible to specify which screen we're referring to directly)
@@ -522,9 +921,9 @@ namespace BorderlessGaming.Logic.Windows
 
             if (forced == Boolstate.True || MouseCursorIsHidden)
             {
-                Native.SetSystemCursor(hCursorOriginal, OCR_SYSTEM_CURSORS.OCR_NORMAL);
-                Native.DestroyIcon(hCursorOriginal);
-                hCursorOriginal = IntPtr.Zero;
+                PInvoke.SetSystemCursor(hCursorOriginal, SYSTEM_CURSOR_ID.OCR_NORMAL);
+                PInvoke.DestroyIcon(hCursorOriginal);
+                hCursorOriginal = HCURSOR.Null;
 
                 MouseCursorIsHidden = false;
             }
@@ -534,9 +933,9 @@ namespace BorderlessGaming.Logic.Windows
 
                 try
                 {
-                    hCursorOriginal = frmMain.Cursor.CopyHandle();
+                    hCursorOriginal = new HCURSOR(frmMain.Cursor.CopyHandle());
 
-                    if (curInvisibleCursor == null)
+                    if (curInvisibleCursorForms == null)
                     {
                         // Can't load from a memory stream because the constructor new Cursor() does not accept animated or non-monochrome cursors
                         fileName = Path.GetTempPath() + Guid.NewGuid() + ".cur";
@@ -552,10 +951,13 @@ namespace BorderlessGaming.Logic.Windows
                             fileStream.Close();
                         }
 
-                        curInvisibleCursor = new Cursor(Native.LoadCursorFromFile(fileName));
+                        var file = PInvoke.LoadCursorFromFile(fileName);
+                        if (!file.IsInvalid && !file.IsClosed) {
+                            curInvisibleCursorForms = new Cursor(file.DangerousGetHandle());
+                        }
                     }
 
-                    Native.SetSystemCursor(curInvisibleCursor.CopyHandle(), OCR_SYSTEM_CURSORS.OCR_NORMAL);
+                    PInvoke.SetSystemCursor(new HCURSOR(curInvisibleCursorForms.CopyHandle()), SYSTEM_CURSOR_ID.OCR_NORMAL);
 
                     MouseCursorIsHidden = true;
                 }
@@ -583,8 +985,7 @@ namespace BorderlessGaming.Logic.Windows
         }
 
 #nullable enable
-        public static void ToggleMouseCursorVisibility(System.Windows.Window windowMain,
-            Boolstate forced = Boolstate.Indeterminate)
+        public static void ToggleMouseCursorVisibility(System.Windows.Window windowMain, Boolstate forced = Boolstate.Indeterminate)
         {
             if (forced == Boolstate.True && !MouseCursorIsHidden ||
                 forced == Boolstate.False && MouseCursorIsHidden)
@@ -594,71 +995,25 @@ namespace BorderlessGaming.Logic.Windows
 
             if (forced == Boolstate.True || MouseCursorIsHidden)
             {
-                Native.SetSystemCursor(hCursorOriginal, OCR_SYSTEM_CURSORS.OCR_NORMAL);
-                Native.DestroyIcon(hCursorOriginal);
-                hCursorOriginal = IntPtr.Zero;
+                PInvoke.SetSystemCursor(hCursorOriginal, SYSTEM_CURSOR_ID.OCR_NORMAL);
+                PInvoke.DestroyIcon(hCursorOriginal);
+                hCursorOriginal = default(HCURSOR);
 
                 MouseCursorIsHidden = false;
             }
             else
             {
-                string? fileName = null;
-
-                try
-                {
-                    hCursorOriginal = windowMain.Cursor.CopyHandle();
-
-                    if (curInvisibleCursor == null)
-                    {
-                        // Can't load from a memory stream because the constructor new Cursor() does not accept animated or non-monochrome cursors
-                        fileName = Path.GetTempPath() + Guid.NewGuid() + ".cur";
-
-                        using (var fileStream = File.Open(fileName, FileMode.Create))
-                        {
-                            using (var ms = new MemoryStream(Resources.blank))
-                            {
-                                ms.WriteTo(fileStream);
-                            }
-
-                            fileStream.Flush();
-                            fileStream.Close();
-                        }
-
-                        curInvisibleCursor = new Cursor(Native.LoadCursorFromFile(fileName));
-                    }
-
-                    Native.SetSystemCursor(curInvisibleCursor.CopyHandle(), OCR_SYSTEM_CURSORS.OCR_NORMAL);
-
-                    MouseCursorIsHidden = true;
-                }
-                catch
-                {
-                    // swallow exception and assume cursor set failed
-                }
-                finally
-                {
-                    try
-                    {
-                        if (!string.IsNullOrEmpty(fileName))
-                        {
-                            if (File.Exists(fileName))
-                            {
-                                File.Delete(fileName);
-                            }
-                        }
-                    }
-                    catch
-                    {
-                    }
-                }
+                System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.None;
             }
         }
+
         /// <summary>
         ///     remove the menu, resize the window, remove border, and maximize
         /// </summary>
-        public static async Task MakeWindowBorderless(ProcessDetails processDetails, System.Windows.Window windowMain, IntPtr targetWindow,
+        internal static async Task MakeWindowBorderless(ProcessDetails processDetails, System.Windows.Window windowMain, HWND targetWindow,
             Rectangle targetFrame, Favorite favDetails)
         {
+            var _windowHandle = new WindowInteropHelper(windowMain).Handle;
             if (NeedsDelay(targetWindow))
             {
                 await MakeWindowBorderlessDelayed(processDetails, windowMain, targetWindow, targetFrame, favDetails);
@@ -689,33 +1044,34 @@ namespace BorderlessGaming.Logic.Windows
                 }
 
                 // Get window styles
-                var styleCurrentWindowStandard = Native.GetWindowLong(targetWindow, WindowLongIndex.Style);
-                var styleCurrentWindowExtended = Native.GetWindowLong(targetWindow, WindowLongIndex.ExtendedStyle);
+            var styleCurrentWindowStandard = Native.GetWindowLong32(targetWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE);
+            var styleCurrentWindowExtended = Native.GetWindowLong64(targetWindow, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
 
                 // Compute new styles (XOR of the inverse of all the bits to filter)
                 var styleNewWindowStandard =
                     styleCurrentWindowStandard
                     & ~(
-                        WindowStyleFlags.Caption // composite of Border and DialogFrame
-                        //   | WindowStyleFlags.Border
-                        //   | WindowStyleFlags.DialogFrame                  
-                        | WindowStyleFlags.ThickFrame
-                        | WindowStyleFlags.SystemMenu
-                        | WindowStyleFlags.MaximizeBox // same as TabStop
-                        | WindowStyleFlags.MinimizeBox // same as Group
+                        WINDOW_STYLE.WS_CAPTION // composite of Border and DialogFrame
+                        // | WINDOW_STYLE.WS_BORDER
+                        //| WINDOW_STYLE.WS_DLGFRAME                  
+                        | WINDOW_STYLE.WS_THICKFRAME
+                        | WINDOW_STYLE.WS_OVERLAPPEDWINDOW
+                        | WINDOW_STYLE.WS_SYSMENU
+                        | WINDOW_STYLE.WS_MAXIMIZEBOX // same as TabStop
+                        | WINDOW_STYLE.WS_MINIMIZEBOX // same as Group
                     );
 
                 var styleNewWindowExtended =
                     styleCurrentWindowExtended
                     & ~(
-                        WindowStyleFlags.ExtendedDlgModalFrame
-                        | WindowStyleFlags.ExtendedComposited
-                        | WindowStyleFlags.ExtendedWindowEdge
-                        | WindowStyleFlags.ExtendedClientEdge
-                        | WindowStyleFlags.ExtendedLayered
-                        | WindowStyleFlags.ExtendedStaticEdge
-                        | WindowStyleFlags.ExtendedToolWindow
-                        | WindowStyleFlags.ExtendedAppWindow
+                        WINDOW_EX_STYLE.WS_EX_DLGMODALFRAME
+                        | WINDOW_EX_STYLE.WS_EX_COMPOSITED
+                        | WINDOW_EX_STYLE.WS_EX_WINDOWEDGE
+                        | WINDOW_EX_STYLE.WS_EX_CLIENTEDGE
+                        | WINDOW_EX_STYLE.WS_EX_LAYERED
+                        | WINDOW_EX_STYLE.WS_EX_STATICEDGE
+                        | WINDOW_EX_STYLE.WS_EX_TOOLWINDOW
+                        | WINDOW_EX_STYLE.WS_EX_APPWINDOW
                     );
 
                 // Should have process details by now
@@ -724,34 +1080,33 @@ namespace BorderlessGaming.Logic.Windows
                     // Save original details on this window so that we have a chance at undoing the process
                     processDetails.OriginalStyleFlagsStandard = styleCurrentWindowStandard;
                     processDetails.OriginalStyleFlagsExtended = styleCurrentWindowExtended;
-                    Native.Rect rectTemp;
-                    Native.GetWindowRect(processDetails.WindowHandle, out rectTemp);
-                    processDetails.OriginalLocation = new Rectangle(rectTemp.Left, rectTemp.Top,
-                        rectTemp.Right - rectTemp.Left, rectTemp.Bottom - rectTemp.Top);
+                    PInvoke.GetWindowRect(processDetails.WindowHandle, out RECT rectTemp);
+                    processDetails.OriginalLocation = new Rectangle(rectTemp.left, rectTemp.top,
+                        rectTemp.right - rectTemp.left, rectTemp.bottom - rectTemp.top);
                 }
 
-                // remove the menu and menuitems and force a redraw
+                // remove the menu and menu items and force a redraw
                 if (favDetails.RemoveMenus)
                 {
                     // unfortunately, menus can't be re-added easily so they aren't removed by default anymore
-                    var menuHandle = Native.GetMenu(targetWindow);
-                    if (menuHandle != IntPtr.Zero)
+                    var menuHandle = PInvoke.GetMenu(targetWindow);
+                    if (menuHandle != HWND.Null)
                     {
-                        var menuItemCount = Native.GetMenuItemCount(menuHandle);
+                        var menuItemCount = PInvoke.GetMenuItemCount(menuHandle);
 
                         for (var i = 0; i < menuItemCount; i++)
                         {
-                            Native.RemoveMenu(menuHandle, 0, MenuFlags.ByPosition | MenuFlags.Remove);
+                            PInvoke.RemoveMenu(menuHandle, 0, MENU_ITEM_FLAGS.MF_BYPOSITION | MENU_ITEM_FLAGS.MF_REMOVE);
                         }
 
-                        Native.DrawMenuBar(targetWindow);
+                        PInvoke.DrawMenuBar(targetWindow);
                     }
                 }
 
-                // auto-hide the Windows taskbar (do this before resizing the window)
+                // auto-hide the Windows task bar (do this before resizing the window)
                 if (favDetails.HideWindowsTaskbar)
                 {
-                    Native.ShowWindow(windowMain.Handle, WindowShowStyle.ShowNoActivate);
+                    PInvoke.ShowWindow(new HWND(_windowHandle), SHOW_WINDOW_CMD.SW_SHOWNOACTIVATE);
                     if (windowMain.WindowState == System.Windows.WindowState.Minimized)
                     {
                         windowMain.WindowState = System.Windows.WindowState.Normal;
@@ -767,8 +1122,8 @@ namespace BorderlessGaming.Logic.Windows
                 }
 
                 // update window styles
-                Native.SetWindowLong(targetWindow, WindowLongIndex.Style, styleNewWindowStandard);
-                Native.SetWindowLong(targetWindow, WindowLongIndex.ExtendedStyle, styleNewWindowExtended);
+                Native.SetWindowLong32(targetWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE, styleNewWindowStandard);
+                Native.SetWindowLong64(targetWindow, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, styleNewWindowExtended);
 
                 // update window position
                 if (favDetails.Size != FavoriteSize.NoChange)
@@ -777,37 +1132,37 @@ namespace BorderlessGaming.Logic.Windows
                         favDetails.PositionHeight == 0)
                     {
                         // Set the window size to the biggest possible, using bounding adjustments
-                        Native.SetWindowPos
+                        PInvoke.SetWindowPos
                         (
                             targetWindow,
-                            0,
+                            HWND.Null,
                             targetFrame.X + favDetails.OffsetLeft,
                             targetFrame.Y + favDetails.OffsetTop,
                             targetFrame.Width - favDetails.OffsetLeft + favDetails.OffsetRight,
                             targetFrame.Height - favDetails.OffsetTop + favDetails.OffsetBottom,
-                            SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoOwnerZOrder |
-                            SetWindowPosFlags.NoSendChanging
+                            SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER |
+                            SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
                         );
 
                         // And auto-maximize
                         if (favDetails.ShouldMaximize)
                         {
-                            Native.ShowWindow(targetWindow, WindowShowStyle.Maximize);
+                            PInvoke.ShowWindow(targetWindow, SHOW_WINDOW_CMD.SW_MAXIMIZE);
                         }
                     }
                     else
                     {
                         // Set the window size to the exact position specified by the user
-                        Native.SetWindowPos
+                        PInvoke.SetWindowPos
                         (
                             targetWindow,
-                            0,
+                            HWND.Null,
                             favDetails.PositionX,
                             favDetails.PositionY,
                             favDetails.PositionWidth,
                             favDetails.PositionHeight,
-                            SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoOwnerZOrder |
-                            SetWindowPosFlags.NoSendChanging
+                            SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER |
+                            SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
                         );
                     }
                 }
@@ -815,7 +1170,7 @@ namespace BorderlessGaming.Logic.Windows
                 // Set topmost
                 if (favDetails.TopMost)
                 {
-                    Native.SetWindowPos
+                    PInvoke.SetWindowPos
                     (
                         targetWindow,
                         Native.HWND_TOPMOST,
@@ -823,8 +1178,8 @@ namespace BorderlessGaming.Logic.Windows
                         0,
                         0,
                         0,
-                        SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoMove | SetWindowPosFlags.NoSize |
-                        SetWindowPosFlags.NoSendChanging
+                        SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE |
+                        SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
                     );
                 }
             }
@@ -844,9 +1199,9 @@ namespace BorderlessGaming.Logic.Windows
             }
         }
 
-        private static async Task MakeWindowBorderlessDelayed(ProcessDetails processDetails, System.Windows.Window windowMain,
-            IntPtr targetWindow, Rectangle targetFrame, Favorite favDetails)
+        private static async Task MakeWindowBorderlessDelayed(ProcessDetails processDetails, System.Windows.Window windowMain, HWND targetWindow, Rectangle targetFrame, Favorite favDetails)
         {
+            var _windowHandle = new WindowInteropHelper(windowMain).Handle;
             // Automatically match a window to favorite details, if that information is available.
             // Note: if one is not available, the default settings will be used as a new Favorite() object.
 
@@ -871,34 +1226,34 @@ namespace BorderlessGaming.Logic.Windows
             }
 
             // Get window styles
-            var styleCurrentWindowStandard = Native.GetWindowLong(targetWindow, WindowLongIndex.Style);
-            var styleCurrentWindowExtended = Native.GetWindowLong(targetWindow, WindowLongIndex.ExtendedStyle);
+            var styleCurrentWindowStandard = Native.GetWindowLong32(targetWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE);
+            var styleCurrentWindowExtended = Native.GetWindowLong64(targetWindow, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE);
 
             // Compute new styles (XOR of the inverse of all the bits to filter)
             var styleNewWindowStandard =
                 styleCurrentWindowStandard
                 & ~(
-                    WindowStyleFlags.Caption // composite of Border and DialogFrame
-                    // | WindowStyleFlags.Border
-                    //| WindowStyleFlags.DialogFrame                  
-                    | WindowStyleFlags.ThickFrame
-                    | WindowStyleFlags.OverlappedWindow
-                    | WindowStyleFlags.SystemMenu
-                    | WindowStyleFlags.MaximizeBox // same as TabStop
-                    | WindowStyleFlags.MinimizeBox // same as Group
+                    WINDOW_STYLE.WS_CAPTION // composite of Border and DialogFrame
+                    // | WINDOW_STYLE.WS_BORDER
+                    //| WINDOW_STYLE.WS_DLGFRAME                  
+                    | WINDOW_STYLE.WS_THICKFRAME
+                    | WINDOW_STYLE.WS_OVERLAPPEDWINDOW
+                    | WINDOW_STYLE.WS_SYSMENU
+                    | WINDOW_STYLE.WS_MAXIMIZEBOX // same as TabStop
+                    | WINDOW_STYLE.WS_MINIMIZEBOX // same as Group
                 );
 
             var styleNewWindowExtended =
                 styleCurrentWindowExtended
                 & ~(
-                    WindowStyleFlags.ExtendedDlgModalFrame
-                    | WindowStyleFlags.ExtendedComposited
-                    | WindowStyleFlags.ExtendedWindowEdge
-                    | WindowStyleFlags.ExtendedClientEdge
-                    | WindowStyleFlags.ExtendedLayered
-                    | WindowStyleFlags.ExtendedStaticEdge
-                    | WindowStyleFlags.ExtendedToolWindow
-                    | WindowStyleFlags.ExtendedAppWindow
+                    WINDOW_EX_STYLE.WS_EX_DLGMODALFRAME
+                    | WINDOW_EX_STYLE.WS_EX_COMPOSITED
+                    | WINDOW_EX_STYLE.WS_EX_WINDOWEDGE
+                    | WINDOW_EX_STYLE.WS_EX_CLIENTEDGE
+                    | WINDOW_EX_STYLE.WS_EX_LAYERED
+                    | WINDOW_EX_STYLE.WS_EX_STATICEDGE
+                    | WINDOW_EX_STYLE.WS_EX_TOOLWINDOW
+                    | WINDOW_EX_STYLE.WS_EX_APPWINDOW
                 );
 
             // Should have process details by now
@@ -907,32 +1262,32 @@ namespace BorderlessGaming.Logic.Windows
                 // Save original details on this window so that we have a chance at undoing the process
                 processDetails.OriginalStyleFlagsStandard = styleCurrentWindowStandard;
                 processDetails.OriginalStyleFlagsExtended = styleCurrentWindowExtended;
-                Native.GetWindowRect(processDetails.WindowHandle, out Native.Rect rect_temp);
-                processDetails.OriginalLocation = new Rectangle(rect_temp.Left, rect_temp.Top,
-                    rect_temp.Right - rect_temp.Left, rect_temp.Bottom - rect_temp.Top);
+                PInvoke.GetWindowRect(processDetails.WindowHandle, out RECT rect_temp);
+                processDetails.OriginalLocation = new Rectangle(rect_temp.left, rect_temp.top,
+                    rect_temp.right - rect_temp.left, rect_temp.bottom - rect_temp.top);
             }
 
-            // remove the menu and menuitems and force a redraw
+            // remove the menu and menu items and force a redraw
 
             // unfortunately, menus can't be re-added easily so they aren't removed by default anymore
-            var menuHandle = Native.GetMenu(targetWindow);
-            if (menuHandle != IntPtr.Zero)
+            var menuHandle = PInvoke.GetMenu(targetWindow);
+            if (menuHandle != HMENU.Null)
             {
-                var menuItemCount = Native.GetMenuItemCount(menuHandle);
+                var menuItemCount = PInvoke.GetMenuItemCount(menuHandle);
 
                 for (var i = 0; i < menuItemCount; i++)
                 {
-                    Native.RemoveMenu(menuHandle, 0, MenuFlags.ByPosition | MenuFlags.Remove);
+                    PInvoke.RemoveMenu(menuHandle, 0, MENU_ITEM_FLAGS.MF_BYPOSITION | MENU_ITEM_FLAGS.MF_REMOVE);
                 }
 
-                Native.DrawMenuBar(targetWindow);
+                PInvoke.DrawMenuBar(targetWindow);
             }
 
 
-            // auto-hide the Windows taskbar (do this before resizing the window)
+            // auto-hide the Windows task bar (do this before resizing the window)
             if (favDetails.HideWindowsTaskbar)
             {
-                Native.ShowWindow(windowMain.Handle, WindowShowStyle.ShowNoActivate);
+                PInvoke.ShowWindow(new HWND(_windowHandle), SHOW_WINDOW_CMD.SW_SHOWNOACTIVATE);
                 if (windowMain.WindowState == System.Windows.WindowState.Minimized)
                 {
                     windowMain.WindowState = System.Windows.WindowState.Normal;
@@ -955,31 +1310,31 @@ namespace BorderlessGaming.Logic.Windows
                     favDetails.PositionHeight == 0)
                 {
                     // Set the window size to the biggest possible, using bounding adjustments
-                    Native.SetWindowPos
+                    PInvoke.SetWindowPos
                     (
                         targetWindow,
-                        0,
+                        HWND.Null,
                         targetFrame.X + favDetails.OffsetLeft,
                         targetFrame.Y + favDetails.OffsetTop,
                         targetFrame.Width - favDetails.OffsetLeft + favDetails.OffsetRight,
                         targetFrame.Height - favDetails.OffsetTop + favDetails.OffsetBottom,
-                        SetWindowPosFlags.FrameChanged | SetWindowPosFlags.ShowWindow |
-                        SetWindowPosFlags.NoOwnerZOrder | SetWindowPosFlags.NoSendChanging
+                        SET_WINDOW_POS_FLAGS.SWP_FRAMECHANGED | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW |
+                        SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER | SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
                     );
                 }
                 else
                 {
                     // Set the window size to the exact position specified by the user
-                    Native.SetWindowPos
+                    PInvoke.SetWindowPos
                     (
                         targetWindow,
-                        0,
+                        HWND.Null,
                         favDetails.PositionX,
                         favDetails.PositionY,
                         favDetails.PositionWidth,
                         favDetails.PositionHeight,
-                        SetWindowPosFlags.FrameChanged | SetWindowPosFlags.ShowWindow |
-                        SetWindowPosFlags.NoOwnerZOrder | SetWindowPosFlags.NoSendChanging
+                        SET_WINDOW_POS_FLAGS.SWP_FRAMECHANGED | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW |
+                        SET_WINDOW_POS_FLAGS.SWP_NOOWNERZORDER | SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
                     );
                 }
             }
@@ -987,7 +1342,7 @@ namespace BorderlessGaming.Logic.Windows
             // Set topmost
             if (favDetails.TopMost)
             {
-                Native.SetWindowPos
+                PInvoke.SetWindowPos
                 (
                     targetWindow,
                     Native.HWND_TOPMOST,
@@ -995,15 +1350,15 @@ namespace BorderlessGaming.Logic.Windows
                     0,
                     0,
                     0,
-                    SetWindowPosFlags.FrameChanged | SetWindowPosFlags.ShowWindow | SetWindowPosFlags.NoMove |
-                    SetWindowPosFlags.NoSize | SetWindowPosFlags.NoSendChanging
+                    SET_WINDOW_POS_FLAGS.SWP_FRAMECHANGED | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW | SET_WINDOW_POS_FLAGS.SWP_NOMOVE |
+                    SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOSENDCHANGING
                 );
             }
             //wait before applying styles
             await TaskUtilities.WaitAndStartTaskAsync(() =>
             {
-                Native.SetWindowLong(targetWindow, WindowLongIndex.Style, styleNewWindowStandard);
-                Native.SetWindowLong(targetWindow, WindowLongIndex.ExtendedStyle, styleNewWindowExtended);
+                Native.SetWindowLong32(targetWindow, WINDOW_LONG_PTR_INDEX.GWL_STYLE, styleNewWindowStandard);
+                Native.SetWindowLong64(targetWindow, WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, styleNewWindowExtended);
             }, 4);
         }
         #nullable restore
@@ -1013,31 +1368,30 @@ namespace BorderlessGaming.Logic.Windows
             try
             {
                 // Windows XP and earlier
-                var hNotificationArea = Native.FindWindowEx
+                var hNotificationArea = PInvoke.FindWindowEx
                 (
-                    Native.FW(Native.FW(Native.FW(IntPtr.Zero, "Shell_TrayWnd"), "TrayNotifyWnd"), "SysPager"),
-                    IntPtr.Zero,
+                    new HWND(Native.FW(Native.FW(Native.FW(HWND.Null, "Shell_TrayWnd"), "TrayNotifyWnd"), "SysPager")),
+                    HWND.Null,
                     "ToolbarWindow32",
                     "User Promoted Notification Area"
                 );
 
-                if (hNotificationArea == IntPtr.Zero || hNotificationArea.ToInt32() == Native.INVALID_HANDLE_VALUE)
+                if (hNotificationArea == IntPtr.Zero || hNotificationArea == Native.INVALID_HANDLE_VALUE)
                 {
                     return;
                 }
 
                 // Get the notification bounds
-                var rect = new Native.Rect();
-                Native.GetClientRect(hNotificationArea, ref rect);
+                PInvoke.GetClientRect(hNotificationArea, out RECT rect);
 
                 // Wiggle the mouse over the notification area
                 // Note: this doesn't actually move the mouse cursor on the screen -- this just sends a message to the system tray window
                 //       that mouse movement occurred over it, forcing it to refresh.  Sending messages asking for a repaint or invalidated
                 //       area don't work, but this does.
-                for (uint x = 0; x < rect.Right; x += 5)
-                for (uint y = 0; y < rect.Bottom; y += 5)
+                for (int x = 0; x < rect.right; x += 5)
+                for (int y = 0; y < rect.bottom; y += 5)
                 {
-                    Native.SendMessage(hNotificationArea, Native.WM_MOUSEMOVE, 0, (y << 16) | x);
+                    PInvoke.SendMessage(hNotificationArea, PInvoke.WM_MOUSEMOVE, 0, new LPARAM((y << 16) | x));
                 }
             }
             catch
@@ -1049,7 +1403,7 @@ namespace BorderlessGaming.Logic.Windows
         private class OriginalScreenInfo
         {
             public Screen Screen;
-            public Native.Rect Workarea; // with Windows taskbar
+            public RECT Workarea; // with Windows task bar
         }
     }
 }

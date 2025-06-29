@@ -8,4 +8,4 @@
              xmlns:viewModel="clr-namespace:BorderlessGaming.Windows.ViewModels"
              Exit="OnExit"
              Startup="OnStartup"
-             StartupUri="MainWindowWPF.xaml" />
+             StartupUri="/Windows/MainWindowWPF.xaml" />

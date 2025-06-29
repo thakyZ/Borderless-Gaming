@@ -19,6 +19,17 @@ namespace BorderlessGaming.Logic.Models
             };
         }
 
+        public static ProcessRectangle ToProcessRectangle(System.Windows.Int32Rect rectangle)
+        {
+            return new ProcessRectangle
+            {
+                Height = rectangle.Height,
+                Width = rectangle.Width,
+                X = rectangle.X,
+                Y = rectangle.Y
+            };
+        }
+
         public static Rectangle ToRectangle(ProcessRectangle pRectangle)
         {
             return new Rectangle
